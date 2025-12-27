@@ -30,25 +30,26 @@ class EmployeeController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $companies = Company::all();
-        $branches = Branch::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
-            $branches = Branch::where('company_id', $user->company_id)->get();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
         }
+        
+        $branches = Branch::where('company_id', $user->company_id)->get();
         if ($user->branch_id) {
             $branches = Branch::where('id', $user->branch_id)->get();
         }
         
-        return view('admin.employees.create', compact('companies', 'branches'));
+        return view('admin.employees.create', compact('branches'));
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
+        }
+        
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'branch_id' => 'required|exists:branches,id',
             'full_name' => 'required|string|max:190',
             'phone' => 'nullable|string|max:50',
@@ -57,14 +58,20 @@ class EmployeeController extends Controller
             'status' => 'boolean',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
+        $branch = Branch::findOrFail($request->branch_id);
+        if ($branch->company_id != $user->company_id) {
+            return back()->withErrors(['branch_id' => 'Yetkisiz işlem.']);
         }
 
-        Employee::create($request->only([
-            'company_id', 'branch_id', 'full_name', 'phone', 
-            'start_date', 'end_date', 'status'
-        ]));
+        Employee::create([
+            'company_id' => $user->company_id,
+            'branch_id' => $request->branch_id,
+            'full_name' => $request->full_name,
+            'phone' => $request->phone,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'status' => $request->has('status'),
+        ]);
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Çalışan başarıyla oluşturuldu.');
@@ -77,18 +84,12 @@ class EmployeeController extends Controller
             abort(403);
         }
 
-        $companies = Company::all();
-        $branches = Branch::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
-            $branches = Branch::where('company_id', $user->company_id)->get();
-        }
+        $branches = Branch::where('company_id', $user->company_id)->get();
         if ($user->branch_id) {
             $branches = Branch::where('id', $user->branch_id)->get();
         }
 
-        return view('admin.employees.edit', compact('employee', 'companies', 'branches'));
+        return view('admin.employees.edit', compact('employee', 'branches'));
     }
 
     public function update(Request $request, Employee $employee)
@@ -99,7 +100,6 @@ class EmployeeController extends Controller
         }
 
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'branch_id' => 'required|exists:branches,id',
             'full_name' => 'required|string|max:190',
             'phone' => 'nullable|string|max:50',
@@ -108,14 +108,19 @@ class EmployeeController extends Controller
             'status' => 'boolean',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
+        $branch = Branch::findOrFail($request->branch_id);
+        if ($branch->company_id != $user->company_id) {
+            return back()->withErrors(['branch_id' => 'Yetkisiz işlem.']);
         }
 
-        $employee->update($request->only([
-            'company_id', 'branch_id', 'full_name', 'phone', 
-            'start_date', 'end_date', 'status'
-        ]));
+        $employee->update([
+            'branch_id' => $request->branch_id,
+            'full_name' => $request->full_name,
+            'phone' => $request->phone,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'status' => $request->has('status'),
+        ]);
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Çalışan başarıyla güncellendi.');

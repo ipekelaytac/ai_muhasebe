@@ -54,35 +54,37 @@ class PayrollController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $companies = Company::all();
-        $branches = Branch::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
-            $branches = Branch::where('company_id', $user->company_id)->get();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
         }
+        
+        $branches = Branch::where('company_id', $user->company_id)->get();
         if ($user->branch_id) {
             $branches = Branch::where('id', $user->branch_id)->get();
         }
         
-        return view('admin.payroll.create', compact('companies', 'branches'));
+        return view('admin.payroll.create', compact('branches'));
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
+        }
+        
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'branch_id' => 'required|exists:branches,id',
             'year' => 'required|integer|min:2020|max:2100',
             'month' => 'required|integer|min:1|max:12',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
+        $branch = Branch::findOrFail($request->branch_id);
+        if ($branch->company_id != $user->company_id) {
+            return back()->withErrors(['branch_id' => 'Yetkisiz işlem.']);
         }
 
-        $exists = PayrollPeriod::where('company_id', $request->company_id)
+        $exists = PayrollPeriod::where('company_id', $user->company_id)
             ->where('branch_id', $request->branch_id)
             ->where('year', $request->year)
             ->where('month', $request->month)
@@ -92,7 +94,13 @@ class PayrollController extends Controller
             return back()->withErrors(['month' => 'Bu dönem zaten mevcut.']);
         }
 
-        PayrollPeriod::create($request->only(['company_id', 'branch_id', 'year', 'month', 'status']));
+        PayrollPeriod::create([
+            'company_id' => $user->company_id,
+            'branch_id' => $request->branch_id,
+            'year' => $request->year,
+            'month' => $request->month,
+            'status' => $request->status ?? 'draft',
+        ]);
 
         return redirect()->route('admin.payroll.index')
             ->with('success', 'Bordro dönemi oluşturuldu.');
@@ -670,6 +678,107 @@ class PayrollController extends Controller
 
         return redirect()->route('admin.payroll.item', $item)
             ->with('success', 'Avans mahsuplaşması başarıyla eklendi.');
+    }
+
+    public function deletePayment(PayrollItem $item, PayrollPayment $payment)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+
+        if ($payment->payroll_item_id != $item->id) {
+            abort(404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Delete allocations
+            $payment->allocations()->delete();
+            
+            // Delete payment
+            $payment->delete();
+
+            DB::commit();
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Ödeme başarıyla silindi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Ödeme silinirken hata oluştu: ' . $e->getMessage()]);
+        }
+    }
+
+    public function deleteDeduction(PayrollItem $item, PayrollDeduction $deduction)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+
+        if ($deduction->payroll_item_id != $item->id) {
+            abort(404);
+        }
+
+        DB::beginTransaction();
+        try {
+            $deduction->delete();
+
+            // Recalculate item totals
+            $item->deduction_total = $item->deductions()->sum('amount');
+            $item->net_payable = $item->base_net_salary 
+                + $item->meal_allowance 
+                + $item->bonus_total 
+                - $item->deduction_total 
+                - $item->advances_deducted_total;
+            $item->save();
+
+            DB::commit();
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Kesinti başarıyla silindi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Kesinti silinirken hata oluştu: ' . $e->getMessage()]);
+        }
+    }
+
+    public function deleteAdvanceSettlement(PayrollItem $item, AdvanceSettlement $settlement)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+
+        if ($settlement->payroll_item_id != $item->id) {
+            abort(404);
+        }
+
+        DB::beginTransaction();
+        try {
+            $advance = $settlement->advance;
+            $settlement->delete();
+
+            // Update advance status if needed
+            if ($advance->remaining_amount > 0 && $advance->status == 0) {
+                $advance->status = 1;
+                $advance->save();
+            }
+
+            // Recalculate item totals
+            $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
+            $item->net_payable = $item->base_net_salary 
+                + $item->meal_allowance 
+                + $item->bonus_total 
+                - $item->deduction_total 
+                - $item->advances_deducted_total;
+            $item->save();
+
+            DB::commit();
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Avans mahsuplaşması başarıyla silindi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Avans mahsuplaşması silinirken hata oluştu: ' . $e->getMessage()]);
+        }
     }
 }
 

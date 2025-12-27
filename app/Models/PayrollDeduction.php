@@ -29,7 +29,7 @@ class PayrollDeduction extends Model
 
     public function installment()
     {
-        return $this->belongsTo(PayrollInstallment::class);
+        return $this->belongsTo(PayrollInstallment::class, 'payroll_installment_id');
     }
 
     public function deductionType()

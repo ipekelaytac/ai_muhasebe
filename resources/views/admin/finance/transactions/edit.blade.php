@@ -12,27 +12,15 @@
                 <form method="POST" action="{{ route('admin.finance.transactions.update', $transaction) }}" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="company_id" class="form-label">Şirket</label>
-                            <select name="company_id" id="company_id" required class="form-select">
-                                @foreach($companies as $company)
-                                    <option value="{{ $company->id }}" {{ old('company_id', $transaction->company_id) == $company->id ? 'selected' : '' }}>
-                                        {{ $company->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="branch_id" class="form-label">Şube</label>
-                            <select name="branch_id" id="branch_id" required class="form-select">
-                                @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ old('branch_id', $transaction->branch_id) == $branch->id ? 'selected' : '' }}>
-                                        {{ $branch->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="branch_id" class="form-label">Şube</label>
+                        <select name="branch_id" id="branch_id" required class="form-select">
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}" {{ old('branch_id', $transaction->branch_id) == $branch->id ? 'selected' : '' }}>
+                                    {{ $branch->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -74,13 +62,24 @@
                             <div class="list-group">
                                 @foreach($transaction->attachments as $attachment)
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
+                                        <div class="flex-grow-1">
                                             <i class="bi bi-paperclip me-2"></i>
-                                            <a href="{{ Storage::url($attachment->file_path) }}" target="_blank" class="text-decoration-none">
+                                            <a href="{{ route('admin.finance.transactions.attachment.show', $attachment) }}" target="_blank" class="text-decoration-none">
+                                                <i class="bi bi-file-earmark me-1"></i>
                                                 {{ basename($attachment->file_path) }}
                                             </a>
+                                            <br>
+                                            @php
+                                                try {
+                                                    $fileSize = \Illuminate\Support\Facades\Storage::disk('public')->size($attachment->file_path);
+                                                    $fileSizeKB = number_format($fileSize / 1024, 2);
+                                                } catch (\Exception $e) {
+                                                    $fileSizeKB = '-';
+                                                }
+                                            @endphp
+                                            <small class="text-muted ms-4">{{ $fileSizeKB }} KB</small>
                                         </div>
-                                        <form action="{{ route('admin.finance.transactions.attachment.destroy', $attachment) }}" method="POST" class="d-inline" onsubmit="return confirm('Emin misiniz?');">
+                                        <form action="{{ route('admin.finance.transactions.attachment.destroy', $attachment) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu ek dosyasını silmek istediğinizden emin misiniz?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger">

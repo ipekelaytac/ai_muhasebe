@@ -26,30 +26,27 @@ class PayrollDeductionTypeController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $companies = Company::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
         }
         
-        return view('admin.payroll.deduction-types.create', compact('companies'));
+        return view('admin.payroll.deduction-types.create');
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
+        }
+        
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'name' => 'required|string|max:190',
             'is_active' => 'boolean',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
-        }
-
         PayrollDeductionType::create([
-            'company_id' => $request->company_id,
+            'company_id' => $user->company_id,
             'name' => $request->name,
             'is_active' => $request->has('is_active'),
         ]);
@@ -65,14 +62,7 @@ class PayrollDeductionTypeController extends Controller
             abort(403);
         }
 
-        $user = Auth::user();
-        $companies = Company::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
-        }
-
-        return view('admin.payroll.deduction-types.edit', compact('deductionType', 'companies'));
+        return view('admin.payroll.deduction-types.edit', compact('deductionType'));
     }
 
     public function update(Request $request, PayrollDeductionType $deductionType)
@@ -83,17 +73,11 @@ class PayrollDeductionTypeController extends Controller
         }
 
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'name' => 'required|string|max:190',
             'is_active' => 'boolean',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
-        }
-
         $deductionType->update([
-            'company_id' => $request->company_id,
             'name' => $request->name,
             'is_active' => $request->has('is_active'),
         ]);

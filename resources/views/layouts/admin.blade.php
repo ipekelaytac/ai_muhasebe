@@ -15,13 +15,17 @@
             min-height: 100vh;
             position: sticky;
             top: 0;
+            height: 100vh;
+            overflow-y: auto;
         }
         @media (max-width: 991.98px) {
             .sidebar {
                 position: fixed;
-                z-index: 1000;
+                z-index: 1050;
                 transform: translateX(-100%);
                 transition: transform 0.3s ease;
+                height: 100vh;
+                width: 280px !important;
             }
             .sidebar.show {
                 transform: translateX(0);
@@ -34,10 +38,40 @@
                 right: 0;
                 bottom: 0;
                 background: rgba(0,0,0,0.5);
-                z-index: 999;
+                z-index: 1040;
             }
             .sidebar-backdrop.show {
                 display: block;
+            }
+            main {
+                padding: 1rem !important;
+            }
+            .card {
+                margin-bottom: 1rem;
+            }
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+            .btn-group {
+                flex-wrap: wrap;
+            }
+            .btn-group .btn {
+                margin-bottom: 0.25rem;
+            }
+        }
+        @media (max-width: 575.98px) {
+            main {
+                padding: 0.75rem !important;
+            }
+            .card-body {
+                padding: 1rem !important;
+            }
+            .table {
+                font-size: 0.8rem;
+            }
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -49,7 +83,7 @@
         <div class="flex-grow-1 d-flex flex-column">
             @include('partials.topbar')
             
-            <main class="flex-grow-1 p-4">
+            <main class="flex-grow-1 p-3 p-md-4">
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="bi bi-check-circle me-2"></i>
@@ -94,6 +128,30 @@
             sidebar.classList.toggle('show');
             backdrop.classList.toggle('show');
         }
+        
+        function closeSidebarOnMobile() {
+            if (window.innerWidth < 992) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+                sidebar.classList.remove('show');
+                backdrop.classList.remove('show');
+            }
+        }
+        
+        // Close sidebar when clicking backdrop
+        document.getElementById('sidebarBackdrop').addEventListener('click', function() {
+            closeSidebarOnMobile();
+        });
+        
+        // Close sidebar on window resize if it becomes desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 992) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+                sidebar.classList.remove('show');
+                backdrop.classList.remove('show');
+            }
+        });
     </script>
     @yield('scripts')
 </body>

@@ -147,23 +147,24 @@
         <div class="card-body">
             @forelse($item->deductions as $deduction)
                 <div class="row g-3 align-items-center border-bottom pb-3 mb-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="fw-bold text-primary">{{ $deduction->deductionType->name }}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="mb-1">
                             <small class="text-muted d-block">Taksit Seçimi:</small>
-                            @if($deduction->installment)
-                                <span class="badge bg-info text-dark fs-6">
-                                    T{{ $deduction->installment->installment_no }}
+                            @if($deduction->payroll_installment_id && $deduction->installment)
+                                <div>
+                                    <span class="badge bg-info text-dark">
+                                        {{ $deduction->installment->installment_no }}. Taksit
+                                    </span>
                                     @if($deduction->installment->title)
-                                        - {{ $deduction->installment->title }}
+                                        <br><small class="text-muted fw-bold">{{ $deduction->installment->title }}</small>
                                     @endif
-                                    <br>
-                                    <small>({{ $deduction->installment->due_date->format('d.m.Y') }})</small>
-                                </span>
+                                    <br><small class="text-muted">({{ $deduction->installment->due_date->format('d.m.Y') }})</small>
+                                </div>
                             @else
-                                <span class="badge bg-secondary fs-6">Genel (Her İki Taksitten)</span>
+                                <span class="badge bg-secondary">Genel (Her İki Taksitten)</span>
                             @endif
                         </div>
                     </div>
@@ -173,7 +174,7 @@
                             <span class="fw-bold fs-5 text-warning">{{ number_format($deduction->amount, 2) }} ₺</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-1">
                             <small class="text-muted d-block">Not:</small>
                             @if($deduction->description)
@@ -182,6 +183,11 @@
                                 <span class="text-muted fst-italic">Not yok</span>
                             @endif
                         </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteDeductionModal{{ $deduction->id }}">
+                            <i class="bi bi-trash"></i> Sil
+                        </button>
                     </div>
                 </div>
             @empty
@@ -205,7 +211,7 @@
         <div class="card-body">
             @forelse($item->advanceSettlements as $settlement)
                 <div class="row g-3 align-items-center border-bottom pb-3 mb-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="mb-1">
                             <small class="text-muted d-block">Avans Tarihi:</small>
                             <div class="fw-bold">{{ $settlement->advance->advance_date->format('d.m.Y') }}</div>
@@ -214,21 +220,22 @@
                     <div class="col-md-3">
                         <div class="mb-1">
                             <small class="text-muted d-block">Taksit Seçimi:</small>
-                            @if($settlement->installment)
-                                <span class="badge bg-info text-dark fs-6">
-                                    T{{ $settlement->installment->installment_no }}
+                            @if($settlement->payroll_installment_id && $settlement->installment)
+                                <div>
+                                    <span class="badge bg-info text-dark">
+                                        {{ $settlement->installment->installment_no }}. Taksit
+                                    </span>
                                     @if($settlement->installment->title)
-                                        - {{ $settlement->installment->title }}
+                                        <br><small class="text-muted fw-bold">{{ $settlement->installment->title }}</small>
                                     @endif
-                                    <br>
-                                    <small>({{ $settlement->installment->due_date->format('d.m.Y') }})</small>
-                                </span>
+                                    <br><small class="text-muted">({{ $settlement->installment->due_date->format('d.m.Y') }})</small>
+                                </div>
                             @else
-                                <span class="badge bg-secondary fs-6">Genel (Her İki Taksitten)</span>
+                                <span class="badge bg-secondary">Genel (Her İki Taksitten)</span>
                             @endif
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="mb-1">
                             <small class="text-muted d-block">Mahsup Tarihi:</small>
                             <div>{{ $settlement->settled_date->format('d.m.Y') }}</div>
@@ -239,6 +246,11 @@
                             <small class="text-muted d-block">Tutar:</small>
                             <span class="fw-bold fs-5 text-info">{{ number_format($settlement->settled_amount, 2) }} ₺</span>
                         </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAdvanceSettlementModal{{ $settlement->id }}">
+                            <i class="bi bi-trash"></i> Sil
+                        </button>
                     </div>
                 </div>
             @empty
@@ -274,23 +286,26 @@
                     <tbody>
                         @forelse($item->payments as $payment)
                             @php
-                                $installmentNos = $payment->allocations->map(function($allocation) {
-                                    return $allocation->installment ? $allocation->installment->installment_no : null;
+                                $allocations = $payment->allocations ?? collect();
+                                $installmentNos = $allocations->map(function($allocation) {
+                                    return ($allocation->payroll_installment_id && $allocation->installment) ? $allocation->installment->installment_no : null;
                                 })->filter()->unique()->sort()->values();
                                 
                                 $allocationType = '';
-                                if ($installmentNos->count() == 0) {
-                                    $allocationType = '-';
+                                $allocationTitle = '';
+                                if ($allocations->isEmpty() || $installmentNos->count() == 0) {
+                                    $allocationType = 'Otomatik';
                                 } elseif ($installmentNos->count() == 1) {
                                     $no = $installmentNos->first();
-                                    $allocation = $payment->allocations->first(function($a) use ($no) {
-                                        return $a->installment && $a->installment->installment_no == $no;
+                                    $allocation = $allocations->first(function($a) use ($no) {
+                                        return $a->payroll_installment_id && $a->installment && $a->installment->installment_no == $no;
                                     });
                                     if ($allocation && $allocation->installment) {
                                         $installment = $allocation->installment;
-                                        $allocationType = 'T' . $no . ($installment->title ? ' (' . $installment->title . ')' : '');
+                                        $allocationType = $no . '. Taksit';
+                                        $allocationTitle = $installment->title ? $installment->title : ($no == 1 ? '5\'i' : '20\'si');
                                     } else {
-                                        $allocationType = 'T' . $no;
+                                        $allocationType = $no . '. Taksit';
                                     }
                                 } else {
                                     $allocationType = 'Her İkisine Böl';
@@ -309,32 +324,54 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge bg-warning text-dark">{{ $allocationType }}</span>
+                                    @if($allocationType == 'Her İkisine Böl')
+                                        <span class="badge bg-primary">{{ $allocationType }}</span>
+                                    @elseif($allocationType == 'Otomatik')
+                                        <span class="badge bg-secondary">{{ $allocationType }}</span>
+                                    @else
+                                        <div>
+                                            <span class="badge bg-warning text-dark">{{ $allocationType }}</span>
+                                            @if($allocationTitle)
+                                                <br><small class="text-muted fw-bold">{{ $allocationTitle }}</small>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
-                                    @foreach($payment->allocations as $allocation)
-                                        @if($allocation->installment)
-                                            <span class="badge bg-info text-dark me-1 mb-1 d-inline-block">
-                                                T{{ $allocation->installment->installment_no }}
-                                                @if($allocation->installment->title)
-                                                    ({{ $allocation->installment->title }})
-                                                @endif
-                                                : {{ number_format($allocation->allocated_amount, 2) }} ₺
-                                            </span>
-                                        @else
-                                            <span class="badge bg-secondary me-1 mb-1 d-inline-block">
-                                                {{ number_format($allocation->allocated_amount, 2) }} ₺
-                                            </span>
-                                        @endif
-                                    @endforeach
+                                    @if($payment->allocations->count() > 0)
+                                        @foreach($payment->allocations as $allocation)
+                                            @if($allocation->payroll_installment_id && $allocation->installment)
+                                                <div class="mb-1">
+                                                    <span class="badge bg-info text-dark">
+                                                        {{ $allocation->installment->installment_no }}. Taksit
+                                                        @if($allocation->installment->title)
+                                                            ({{ $allocation->installment->title }})
+                                                        @else
+                                                            ({{ $allocation->installment->due_date->format('d.m.Y') }})
+                                                        @endif
+                                                    </span>
+                                                    <br>
+                                                    <small class="text-muted">{{ number_format($allocation->allocated_amount, 2) }} ₺</small>
+                                                </div>
+                                            @else
+                                                <span class="badge bg-secondary">
+                                                    Genel: {{ number_format($allocation->allocated_amount, 2) }} ₺
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 <td class="text-end">
-                                    {{-- Add payment actions here if needed --}}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deletePaymentModal{{ $payment->id }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">Henüz ödeme yok</td>
+                            <td colspan="6" class="text-center py-4 text-muted">Henüz ödeme yok</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -508,6 +545,114 @@
         </div>
     </div>
 </div>
+
+{{-- Delete Payment Modals --}}
+@foreach($item->payments as $payment)
+<div class="modal fade" id="deletePaymentModal{{ $payment->id }}" tabindex="-1" aria-labelledby="deletePaymentModalLabel{{ $payment->id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletePaymentModalLabel{{ $payment->id }}">Ödemeyi Sil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bu ödemeyi silmek istediğinizden emin misiniz?</p>
+                <div class="alert alert-warning">
+                    <strong>Tarih:</strong> {{ $payment->payment_date->format('d.m.Y') }}<br>
+                    <strong>Tutar:</strong> {{ number_format($payment->amount, 2) }} ₺<br>
+                    <strong>Yöntem:</strong> {{ $payment->method == 'bank' ? 'Banka' : ($payment->method == 'cash' ? 'Nakit' : 'Diğer') }}
+                </div>
+                <p class="text-danger mb-0"><small>Bu işlem geri alınamaz!</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <form action="{{ route('admin.payroll.delete-payment', [$item, $payment]) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endforeach
+
+{{-- Delete Deduction Modals --}}
+@foreach($item->deductions as $deduction)
+<div class="modal fade" id="deleteDeductionModal{{ $deduction->id }}" tabindex="-1" aria-labelledby="deleteDeductionModalLabel{{ $deduction->id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDeductionModalLabel{{ $deduction->id }}">Kesintiyi Sil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bu kesintiyi silmek istediğinizden emin misiniz?</p>
+                <div class="alert alert-warning">
+                    <strong>Kesinti Tipi:</strong> {{ $deduction->deductionType->name }}<br>
+                    <strong>Tutar:</strong> {{ number_format($deduction->amount, 2) }} ₺<br>
+                    @if($deduction->payroll_installment_id && $deduction->installment)
+                        <strong>Taksit:</strong> {{ $deduction->installment->installment_no }}. Taksit
+                        @if($deduction->installment->title)
+                            ({{ $deduction->installment->title }})
+                        @endif
+                    @else
+                        <strong>Taksit:</strong> Genel (Her İki Taksitten)
+                    @endif
+                </div>
+                <p class="text-danger mb-0"><small>Bu işlem geri alınamaz!</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <form action="{{ route('admin.payroll.delete-deduction', [$item, $deduction]) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endforeach
+
+{{-- Delete Advance Settlement Modals --}}
+@foreach($item->advanceSettlements as $settlement)
+<div class="modal fade" id="deleteAdvanceSettlementModal{{ $settlement->id }}" tabindex="-1" aria-labelledby="deleteAdvanceSettlementModalLabel{{ $settlement->id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteAdvanceSettlementModalLabel{{ $settlement->id }}">Avans Mahsuplaşmasını Sil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bu avans mahsuplaşmasını silmek istediğinizden emin misiniz?</p>
+                <div class="alert alert-warning">
+                    <strong>Avans Tarihi:</strong> {{ $settlement->advance->advance_date->format('d.m.Y') }}<br>
+                    <strong>Mahsup Tarihi:</strong> {{ $settlement->settled_date->format('d.m.Y') }}<br>
+                    <strong>Tutar:</strong> {{ number_format($settlement->settled_amount, 2) }} ₺<br>
+                    @if($settlement->payroll_installment_id && $settlement->installment)
+                        <strong>Taksit:</strong> {{ $settlement->installment->installment_no }}. Taksit
+                        @if($settlement->installment->title)
+                            ({{ $settlement->installment->title }})
+                        @endif
+                    @else
+                        <strong>Taksit:</strong> Genel (Her İki Taksitten)
+                    @endif
+                </div>
+                <p class="text-danger mb-0"><small>Bu işlem geri alınamaz!</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <form action="{{ route('admin.payroll.delete-advance-settlement', [$item, $settlement]) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endforeach
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

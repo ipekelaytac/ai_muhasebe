@@ -26,29 +26,30 @@ class BranchController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $companies = Company::all();
-        
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
         }
         
-        return view('admin.branches.create', compact('companies'));
+        return view('admin.branches.create');
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        if (!$user->company_id) {
+            abort(403, 'Şirket bilgisi bulunamadı.');
+        }
+        
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'name' => 'required|string|max:190',
             'address' => 'nullable|string|max:500',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
-        }
-
-        Branch::create($request->only(['company_id', 'name', 'address']));
+        Branch::create([
+            'company_id' => $user->company_id,
+            'name' => $request->name,
+            'address' => $request->address,
+        ]);
 
         return redirect()->route('admin.branches.index')
             ->with('success', 'Şube başarıyla oluşturuldu.');
@@ -61,12 +62,7 @@ class BranchController extends Controller
             abort(403);
         }
 
-        $companies = Company::all();
-        if ($user->company_id) {
-            $companies = Company::where('id', $user->company_id)->get();
-        }
-
-        return view('admin.branches.edit', compact('branch', 'companies'));
+        return view('admin.branches.edit', compact('branch'));
     }
 
     public function update(Request $request, Branch $branch)
@@ -77,16 +73,14 @@ class BranchController extends Controller
         }
 
         $request->validate([
-            'company_id' => 'required|exists:companies,id',
             'name' => 'required|string|max:190',
             'address' => 'nullable|string|max:500',
         ]);
 
-        if ($user->company_id && $request->company_id != $user->company_id) {
-            return back()->withErrors(['company_id' => 'Yetkisiz işlem.']);
-        }
-
-        $branch->update($request->only(['company_id', 'name', 'address']));
+        $branch->update([
+            'name' => $request->name,
+            'address' => $request->address,
+        ]);
 
         return redirect()->route('admin.branches.index')
             ->with('success', 'Şube başarıyla güncellendi.');

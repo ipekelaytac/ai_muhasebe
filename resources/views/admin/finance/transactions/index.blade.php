@@ -49,9 +49,14 @@
                             <td>
                                 <div>{{ $transaction->description }}</div>
                                 @if($transaction->attachments->count() > 0)
-                                    <small class="text-muted">
-                                        <i class="bi bi-paperclip"></i> {{ $transaction->attachments->count() }} ek
-                                    </small>
+                                    <div class="mt-2">
+                                        @foreach($transaction->attachments as $attachment)
+                                            <a href="{{ route('admin.finance.transactions.attachment.show', $attachment) }}" target="_blank" class="badge bg-info text-dark text-decoration-none me-1">
+                                                <i class="bi bi-file-earmark me-1"></i>
+                                                {{ basename($attachment->file_path) }}
+                                            </a>
+                                        @endforeach
+                                    </div>
                                 @endif
                             </td>
                             <td class="text-end fw-bold {{ $transaction->type === 'income' ? 'text-success' : 'text-danger' }}">

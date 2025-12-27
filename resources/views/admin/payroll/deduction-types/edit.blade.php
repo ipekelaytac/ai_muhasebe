@@ -13,16 +13,6 @@
                     @csrf
                     @method('PUT')
                     <div class="mb-3">
-                        <label for="company_id" class="form-label">Şirket</label>
-                        <select name="company_id" id="company_id" required class="form-select">
-                            @foreach($companies as $company)
-                                <option value="{{ $company->id }}" {{ old('company_id', $deductionType->company_id) == $company->id ? 'selected' : '' }}>
-                                    {{ $company->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label for="name" class="form-label">Kesinti Tipi Adı</label>
                         <input type="text" name="name" id="name" value="{{ old('name', $deductionType->name) }}" required
                             class="form-control">

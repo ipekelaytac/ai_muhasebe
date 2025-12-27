@@ -11,29 +11,16 @@
             <div class="card-body p-4">
                 <form method="POST" action="{{ route('admin.employees.store') }}">
                     @csrf
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="company_id" class="form-label">Şirket</label>
-                            <select name="company_id" id="company_id" required class="form-select">
-                                <option value="">Seçiniz</option>
-                                @foreach($companies as $company)
-                                    <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
-                                        {{ $company->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="branch_id" class="form-label">Şube</label>
-                            <select name="branch_id" id="branch_id" required class="form-select">
-                                <option value="">Seçiniz</option>
-                                @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
-                                        {{ $branch->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="branch_id" class="form-label">Şube</label>
+                        <select name="branch_id" id="branch_id" required class="form-select">
+                            <option value="">Seçiniz</option>
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                    {{ $branch->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="full_name" class="form-label">Ad Soyad</label>
