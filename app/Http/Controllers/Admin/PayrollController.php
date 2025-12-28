@@ -99,7 +99,7 @@ class PayrollController extends Controller
             'branch_id' => $request->branch_id,
             'year' => $request->year,
             'month' => $request->month,
-            'status' => $request->status ?? 'draft',
+            'status' => $request->has('status') ? (bool) $request->status : true, // Default: açık (1)
         ]);
 
         return redirect()->route('admin.payroll.index')
