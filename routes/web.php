@@ -11,6 +11,12 @@ use App\Http\Controllers\Admin\PayrollDeductionTypeController;
 use App\Http\Controllers\Admin\AdvanceController;
 use App\Http\Controllers\Admin\MealAllowanceController;
 use App\Http\Controllers\Admin\SalaryCalculatorController;
+use App\Http\Controllers\Admin\CostCalculatorController;
+use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\CustomerTransactionController;
+use App\Http\Controllers\Admin\CheckController;
+use App\Http\Controllers\Admin\OvertimeController;
+use App\Http\Controllers\Admin\EmployeeDebtController;
 use App\Http\Controllers\Admin\FinanceCategoryController;
 use App\Http\Controllers\Admin\FinanceTransactionController;
 use App\Http\Controllers\Admin\ReportController;
@@ -75,6 +81,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('admin/payroll/item/{item}/deduction/{deduction}', [PayrollController::class, 'deleteDeduction'])->name('admin.payroll.delete-deduction');
     Route::post('admin/payroll/item/{item}/settle-advance', [PayrollController::class, 'settleAdvance'])->name('admin.payroll.settle-advance');
     Route::delete('admin/payroll/item/{item}/advance-settlement/{settlement}', [PayrollController::class, 'deleteAdvanceSettlement'])->name('admin.payroll.delete-advance-settlement');
+    Route::post('admin/payroll/item/{item}/debt-payment', [PayrollController::class, 'addDebtPayment'])->name('admin.payroll.add-debt-payment');
+    Route::delete('admin/payroll/item/{item}/debt-payment/{debtPayment}', [PayrollController::class, 'deleteDebtPayment'])->name('admin.payroll.delete-debt-payment');
     
     // Payroll Deduction Types
     Route::resource('admin/payroll/deduction-types', PayrollDeductionTypeController::class)->names([
@@ -103,6 +111,60 @@ Route::middleware('auth')->group(function () {
     // Salary Calculator
     Route::get('admin/salary-calculator', [SalaryCalculatorController::class, 'index'])->name('admin.salary-calculator.index');
     Route::post('admin/salary-calculator/calculate', [SalaryCalculatorController::class, 'calculate'])->name('admin.salary-calculator.calculate');
+    
+    // Cost Calculator
+    Route::get('admin/cost-calculator', [CostCalculatorController::class, 'index'])->name('admin.cost-calculator.index');
+    Route::post('admin/cost-calculator/calculate', [CostCalculatorController::class, 'calculate'])->name('admin.cost-calculator.calculate');
+    
+    // Customers
+    Route::resource('admin/customers', CustomerController::class)->names([
+        'index' => 'admin.customers.index',
+        'create' => 'admin.customers.create',
+        'store' => 'admin.customers.store',
+        'show' => 'admin.customers.show',
+        'edit' => 'admin.customers.edit',
+        'update' => 'admin.customers.update',
+        'destroy' => 'admin.customers.destroy',
+    ]);
+    
+    // Customer Transactions
+    Route::get('admin/customers/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->name('admin.customers.transactions.create');
+    Route::post('admin/customers/{customer}/transactions', [CustomerTransactionController::class, 'store'])->name('admin.customers.transactions.store');
+    Route::get('admin/customers/{customer}/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->name('admin.customers.transactions.edit');
+    Route::put('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->name('admin.customers.transactions.update');
+    Route::delete('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->name('admin.customers.transactions.destroy');
+    
+    // Checks
+    Route::resource('admin/checks', CheckController::class)->names([
+        'index' => 'admin.checks.index',
+        'create' => 'admin.checks.create',
+        'store' => 'admin.checks.store',
+        'show' => 'admin.checks.show',
+        'edit' => 'admin.checks.edit',
+        'update' => 'admin.checks.update',
+        'destroy' => 'admin.checks.destroy',
+    ]);
+    
+    // Overtimes
+    Route::resource('admin/overtimes', OvertimeController::class)->names([
+        'index' => 'admin.overtimes.index',
+        'create' => 'admin.overtimes.create',
+        'store' => 'admin.overtimes.store',
+        'edit' => 'admin.overtimes.edit',
+        'update' => 'admin.overtimes.update',
+        'destroy' => 'admin.overtimes.destroy',
+    ]);
+    
+    // Employee Debts
+    Route::resource('admin/employee-debts', EmployeeDebtController::class)->names([
+        'index' => 'admin.employee-debts.index',
+        'create' => 'admin.employee-debts.create',
+        'store' => 'admin.employee-debts.store',
+        'show' => 'admin.employee-debts.show',
+        'edit' => 'admin.employee-debts.edit',
+        'update' => 'admin.employee-debts.update',
+        'destroy' => 'admin.employee-debts.destroy',
+    ]);
     
     // Finance Categories
     Route::resource('admin/finance/categories', FinanceCategoryController::class)->names([

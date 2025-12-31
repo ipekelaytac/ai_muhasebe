@@ -14,6 +14,7 @@ class PayrollItem extends Model
         'employee_id',
         'base_net_salary',
         'meal_allowance',
+        'overtime_total',
         'bonus_total',
         'deduction_total',
         'advances_deducted_total',
@@ -24,6 +25,7 @@ class PayrollItem extends Model
     protected $casts = [
         'base_net_salary' => 'decimal:2',
         'meal_allowance' => 'decimal:2',
+        'overtime_total' => 'decimal:2',
         'bonus_total' => 'decimal:2',
         'deduction_total' => 'decimal:2',
         'advances_deducted_total' => 'decimal:2',
@@ -60,9 +62,19 @@ class PayrollItem extends Model
         return $this->hasMany(AdvanceSettlement::class);
     }
 
+    public function debtPayments()
+    {
+        return $this->hasMany(EmployeeDebtPayment::class);
+    }
+
     public function getTotalPaidAttribute()
     {
         return $this->payments->sum('amount');
+    }
+
+    public function getDebtPaymentsTotalAttribute()
+    {
+        return $this->debtPayments->sum('amount');
     }
 
     public function getTotalRemainingAttribute()

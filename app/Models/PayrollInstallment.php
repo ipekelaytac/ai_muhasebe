@@ -33,6 +33,16 @@ class PayrollInstallment extends Model
         return $this->hasMany(PayrollPaymentAllocation::class);
     }
 
+    public function payments()
+    {
+        return $this->belongsToMany(
+            PayrollPayment::class,
+            'payroll_payment_allocations',
+            'payroll_installment_id',
+            'payroll_payment_id'
+        )->withPivot('allocated_amount');
+    }
+
     public function deductions()
     {
         return $this->hasMany(PayrollDeduction::class);

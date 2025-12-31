@@ -34,6 +34,14 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Mesai Ücreti</h6>
+                <p class="card-text fs-4 fw-bold text-success mb-0">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
                 <h6 class="card-subtitle text-muted mb-2">Net Ödenecek</h6>
                 <p class="card-text fs-4 fw-bold text-primary mb-0">{{ number_format($item->net_payable, 2) }} ₺</p>
             </div>
@@ -70,6 +78,14 @@
             <div class="card-body">
                 <h6 class="card-subtitle text-muted mb-2">Avans Mahsupları</h6>
                 <p class="card-text fs-3 fw-bold text-secondary mb-0">{{ number_format($item->advances_deducted_total, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-2">Borç Ödemeleri</h6>
+                <p class="card-text fs-3 fw-bold text-danger mb-0">{{ number_format($item->debt_payments_total ?? 0, 2) }} ₺</p>
             </div>
         </div>
     </div>
@@ -135,6 +151,50 @@
         </div>
     @endforelse
 </div>
+
+@if(isset($overtimes) && $overtimes->count() > 0)
+<div class="mb-4">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Mesailer</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tarih</th>
+                            <th>Başlangıç</th>
+                            <th>Bitiş</th>
+                            <th>Saat</th>
+                            <th>Saatlik Ücret</th>
+                            <th class="text-end">Tutar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($overtimes as $overtime)
+                            <tr>
+                                <td>{{ $overtime->overtime_date->format('d.m.Y') }}</td>
+                                <td>{{ date('H:i', strtotime($overtime->start_time)) }}</td>
+                                <td>{{ date('H:i', strtotime($overtime->end_time)) }}</td>
+                                <td class="fw-bold">{{ number_format($overtime->hours, 2) }} saat</td>
+                                <td>{{ number_format($overtime->rate, 2) }} ₺</td>
+                                <td class="text-end fw-bold text-success">{{ number_format($overtime->amount, 2) }} ₺</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="5" class="text-end">Toplam Mesai Ücreti:</th>
+                            <th class="text-end text-success">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 <div class="mb-4">
     <div class="card border-0 shadow-sm">
@@ -257,6 +317,61 @@
                 <div class="text-center py-5">
                     <i class="bi bi-cash-stack display-4 text-muted d-block mb-3"></i>
                     <p class="text-muted mb-0">Avans mahsuplaşması bulunmuyor</p>
+                </div>
+            @endforelse
+        </div>
+    </div>
+</div>
+
+<div class="mb-4">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Borç Ödemeleri</h5>
+            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#debtPaymentModal">
+                <i class="bi bi-plus-circle me-2"></i>Borç Ödemesi Ekle
+            </button>
+        </div>
+        <div class="card-body">
+            @forelse($item->debtPayments as $debtPayment)
+                <div class="row g-3 align-items-center border-bottom pb-3 mb-3">
+                    <div class="col-md-3">
+                        <div class="fw-bold text-danger">{{ $debtPayment->employeeDebt->debt_date->format('d.m.Y') }} Borcu</div>
+                        <small class="text-muted">{{ $debtPayment->employeeDebt->description ?? 'Açıklama yok' }}</small>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-1">
+                            <small class="text-muted d-block">Ödeme Tarihi:</small>
+                            <div>{{ $debtPayment->payment_date->format('d.m.Y') }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <div class="mb-1">
+                            <small class="text-muted d-block">Tutar:</small>
+                            <span class="fw-bold fs-5 text-danger">{{ number_format($debtPayment->amount, 2) }} ₺</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-1">
+                            <small class="text-muted d-block">Kalan Borç:</small>
+                            <span class="fw-bold {{ $debtPayment->employeeDebt->remaining_amount > 0 ? 'text-danger' : 'text-success' }}">
+                                {{ number_format($debtPayment->employeeDebt->remaining_amount, 2) }} ₺
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <form action="{{ route('admin.payroll.delete-debt-payment', [$item, $debtPayment]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu borç ödemesini silmek istediğinize emin misiniz?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Sil
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            @empty
+                <div class="text-center py-5">
+                    <i class="bi bi-credit-card display-4 text-muted d-block mb-3"></i>
+                    <p class="text-muted mb-0">Borç ödemesi bulunmuyor</p>
                 </div>
             @endforelse
         </div>
@@ -654,6 +769,69 @@
 </div>
 @endforeach
 
+{{-- Debt Payment Modal --}}
+<div class="modal fade" id="debtPaymentModal" tabindex="-1" aria-labelledby="debtPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="debtPaymentModalLabel">Borç Ödemesi Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            @if(isset($openDebts) && $openDebts->count() > 0)
+            <form method="POST" action="{{ route('admin.payroll.add-debt-payment', $item) }}">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="employee_debt_id" class="form-label">Borç <span class="text-danger">*</span></label>
+                        <select name="employee_debt_id" id="employee_debt_id" required class="form-select">
+                            <option value="">Seçiniz</option>
+                            @foreach($openDebts as $debt)
+                                <option value="{{ $debt->id }}" data-remaining="{{ $debt->remaining_amount }}">
+                                    {{ $debt->debt_date->format('d.m.Y') }} - {{ number_format($debt->amount, 2) }} ₺ (Kalan: {{ number_format($debt->remaining_amount, 2) }} ₺)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="debt_payment_amount" class="form-label">Ödeme Tutarı <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="amount" id="debt_payment_amount" step="0.01" min="0.01" required class="form-control" placeholder="0.00">
+                            <span class="input-group-text">₺</span>
+                        </div>
+                        <small class="text-muted" id="debt_max_amount_info"></small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="debt_payment_date" class="form-label">Ödeme Tarihi <span class="text-danger">*</span></label>
+                        <input type="date" name="payment_date" id="debt_payment_date" value="{{ date('Y-m-d') }}" required class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="debt_payment_notes" class="form-label">Notlar</label>
+                        <textarea name="notes" id="debt_payment_notes" rows="2" class="form-control" placeholder="Notlar"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-danger">Borç Ödemesi Ekle</button>
+                </div>
+            </form>
+            @else
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Bu çalışan için açık borç bulunmuyor. Önce borç tanımlamanız gerekiyor.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <a href="{{ route('admin.employee-debts.create') }}?employee_id={{ $item->employee_id }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Yeni Borç Ekle
+                </a>
+            </div>
+            @endif
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var allocationTypeSelect = document.getElementById('allocation_type');
@@ -669,6 +847,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     allocationTypeSelect.addEventListener('change', toggleBothAmounts);
     toggleBothAmounts(); // Initial call to set visibility based on default/old value
+
+    // Debt payment modal - set max amount based on selected debt
+    var debtSelect = document.getElementById('employee_debt_id');
+    var debtAmountInput = document.getElementById('debt_payment_amount');
+    var debtMaxAmountInfo = document.getElementById('debt_max_amount_info');
+    
+    if (debtSelect && debtAmountInput && debtMaxAmountInfo) {
+        debtSelect.addEventListener('change', function() {
+            var selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                var remaining = parseFloat(selectedOption.getAttribute('data-remaining'));
+                debtAmountInput.setAttribute('max', remaining);
+                debtMaxAmountInfo.textContent = 'Maksimum ödeme tutarı: ' + remaining.toFixed(2) + ' ₺';
+            } else {
+                debtAmountInput.removeAttribute('max');
+                debtMaxAmountInfo.textContent = '';
+            }
+        });
+    }
 
     // Advance modal - set max amount based on selected advance
     var advanceSelect = document.getElementById('advance_id');

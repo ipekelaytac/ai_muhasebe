@@ -180,8 +180,17 @@ class PayrollController extends Controller
                 })->whereNull('payroll_installment_id')
                   ->sum('settled_amount');
 
+                // Calculate overtime total for the period
+                $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
+                    ->whereBetween('overtime_date', [
+                        $targetDate->toDateString(),
+                        $targetDate->copy()->endOfMonth()->toDateString()
+                    ])
+                    ->sum('amount');
+
                 $netPayable = $contract->monthly_net_salary 
                     + $contract->meal_allowance 
+                    + $overtimeTotal
                     - $deductionTotal 
                     - $advancesDeducted;
 
@@ -191,6 +200,7 @@ class PayrollController extends Controller
                     'employee_id' => $employee->id,
                     'base_net_salary' => $contract->monthly_net_salary,
                     'meal_allowance' => $contract->meal_allowance,
+                    'overtime_total' => $overtimeTotal,
                     'bonus_total' => 0,
                     'deduction_total' => $deductionTotal,
                     'advances_deducted_total' => $advancesDeducted,
@@ -233,7 +243,31 @@ class PayrollController extends Controller
         if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
             abort(403);
         }
-
+        
+        $item->load([
+            'employee.company', 
+            'employee.branch', 
+            'payrollPeriod.company', 
+            'payrollPeriod.branch',
+            'installments.payments',
+            'installments.deductions.deductionType',
+            'installments.advanceSettlements.advance',
+            'deductions.deductionType',
+            'deductions.installment',
+            'advanceSettlements.advance',
+            'advanceSettlements.installment',
+            'payments.allocations.installment'
+        ]);
+        
+        // Get overtime records for this period
+        $overtimes = \App\Models\Overtime::where('employee_id', $item->employee_id)
+            ->whereBetween('overtime_date', [
+                $item->payrollPeriod->year . '-' . str_pad($item->payrollPeriod->month, 2, '0', STR_PAD_LEFT) . '-01',
+                \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->endOfMonth()->toDateString()
+            ])
+            ->orderBy('overtime_date')
+            ->get();
+        
         $item->load([
             'employee', 
             'payrollPeriod', 
@@ -250,6 +284,15 @@ class PayrollController extends Controller
             'advanceSettlements.advance',
             'advanceSettlements.installment',
         ]);
+        
+        // Get overtime records for this period
+        $overtimes = \App\Models\Overtime::where('employee_id', $item->employee_id)
+            ->whereBetween('overtime_date', [
+                \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->toDateString(),
+                \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->endOfMonth()->toDateString()
+            ])
+            ->orderBy('overtime_date')
+            ->get();
 
         // Get deduction types for this company
         $deductionTypes = PayrollDeductionType::where('company_id', $item->payrollPeriod->company_id)
@@ -265,7 +308,16 @@ class PayrollController extends Controller
                 return $advance->remaining_amount > 0;
             });
 
-        return view('admin.payroll.item', compact('item', 'deductionTypes', 'openAdvances'));
+        // Get open debts for this employee
+        $openDebts = \App\Models\EmployeeDebt::where('employee_id', $item->employee_id)
+            ->where('status', 1)
+            ->with('payments')
+            ->get()
+            ->filter(function ($debt) {
+                return $debt->remaining_amount > 0;
+            });
+
+        return view('admin.payroll.item', compact('item', 'deductionTypes', 'openAdvances', 'overtimes', 'openDebts'));
     }
 
     public function addEmployeeForm(PayrollPeriod $period)
@@ -355,8 +407,17 @@ class PayrollController extends Controller
             })->whereNull('payroll_installment_id')
               ->sum('settled_amount');
 
+            // Calculate overtime total for the period
+            $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
+                ->whereBetween('overtime_date', [
+                    $targetDate->toDateString(),
+                    $targetDate->copy()->endOfMonth()->toDateString()
+                ])
+                ->sum('amount');
+
             $netPayable = $contract->monthly_net_salary 
                 + $contract->meal_allowance 
+                + $overtimeTotal
                 - $deductionTotal 
                 - $advancesDeducted;
 
@@ -366,6 +427,7 @@ class PayrollController extends Controller
                 'employee_id' => $employee->id,
                 'base_net_salary' => $contract->monthly_net_salary,
                 'meal_allowance' => $contract->meal_allowance,
+                'overtime_total' => $overtimeTotal,
                 'bonus_total' => 0,
                 'deduction_total' => $deductionTotal,
                 'advances_deducted_total' => $advancesDeducted,
@@ -552,9 +614,11 @@ class PayrollController extends Controller
         $item->deduction_total = $item->deductions()->sum('amount');
         $item->net_payable = $item->base_net_salary 
             + $item->meal_allowance 
+            + ($item->overtime_total ?? 0)
             + $item->bonus_total 
             - $item->deduction_total 
-            - $item->advances_deducted_total;
+            - $item->advances_deducted_total
+            - $item->debtPayments()->sum('amount');
         $item->save();
 
         return redirect()->route('admin.payroll.item', $item)
@@ -671,13 +735,110 @@ class PayrollController extends Controller
         $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
         $item->net_payable = $item->base_net_salary 
             + $item->meal_allowance 
+            + ($item->overtime_total ?? 0)
             + $item->bonus_total 
             - $item->deduction_total 
-            - $item->advances_deducted_total;
+            - $item->advances_deducted_total
+            - $item->debtPayments()->sum('amount');
         $item->save();
 
         return redirect()->route('admin.payroll.item', $item)
             ->with('success', 'Avans mahsuplaşması başarıyla eklendi.');
+    }
+
+    public function addDebtPayment(Request $request, PayrollItem $item)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'employee_debt_id' => 'required|exists:employee_debts,id',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'required|date',
+            'notes' => 'nullable|string',
+        ]);
+
+        $debt = \App\Models\EmployeeDebt::findOrFail($request->employee_debt_id);
+        if ($debt->employee_id != $item->employee_id) {
+            return back()->withErrors(['employee_debt_id' => 'Bu borç bu çalışana ait değil.']);
+        }
+
+        if ($debt->remaining_amount < $request->amount) {
+            return back()->withErrors(['amount' => 'Ödeme tutarı kalan borçtan fazla olamaz.']);
+        }
+
+        \App\Models\EmployeeDebtPayment::create([
+            'employee_debt_id' => $debt->id,
+            'payroll_item_id' => $item->id,
+            'amount' => $request->amount,
+            'payment_date' => $request->payment_date,
+            'notes' => $request->notes,
+            'created_by' => $user->id,
+        ]);
+
+        // Update debt status if fully paid
+        if ($debt->remaining_amount <= 0) {
+            $debt->status = 0;
+            $debt->save();
+        }
+
+        // Recalculate item totals
+        $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
+        $item->net_payable = $item->base_net_salary 
+            + $item->meal_allowance 
+            + ($item->overtime_total ?? 0)
+            + $item->bonus_total 
+            - $item->deduction_total 
+            - $item->advances_deducted_total
+            - $item->debtPayments()->sum('amount');
+        $item->save();
+
+        return redirect()->route('admin.payroll.item', $item)
+            ->with('success', 'Borç ödemesi başarıyla eklendi.');
+    }
+
+    public function deleteDebtPayment(PayrollItem $item, \App\Models\EmployeeDebtPayment $debtPayment)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+
+        if ($debtPayment->payroll_item_id != $item->id) {
+            abort(404);
+        }
+
+        DB::beginTransaction();
+        try {
+            $debt = $debtPayment->employeeDebt;
+            $debtPayment->delete();
+
+            // Update debt status if needed
+            if ($debt->remaining_amount > 0 && $debt->status == 0) {
+                $debt->status = 1;
+                $debt->save();
+            }
+
+            // Recalculate item totals
+            $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
+            $item->net_payable = $item->base_net_salary 
+                + $item->meal_allowance 
+                + ($item->overtime_total ?? 0)
+                + $item->bonus_total 
+                - $item->deduction_total 
+                - $item->advances_deducted_total
+                - $item->debtPayments()->sum('amount');
+            $item->save();
+
+            DB::commit();
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Borç ödemesi başarıyla silindi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
     }
 
     public function deletePayment(PayrollItem $item, PayrollPayment $payment)

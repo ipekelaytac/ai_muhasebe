@@ -37,6 +37,31 @@
             <span>Maaş Hesaplama</span>
         </a>
         
+        <a href="{{ route('admin.cost-calculator.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.cost-calculator.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-cash-stack me-2"></i>
+            <span>Maliyet Hesaplayıcı</span>
+        </a>
+        
+        <a href="{{ route('admin.customers.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.customers.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-person-badge me-2"></i>
+            <span>Cariler</span>
+        </a>
+        
+        <a href="{{ route('admin.checks.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.checks.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-receipt me-2"></i>
+            <span>Çekler</span>
+        </a>
+        
+        <a href="{{ route('admin.overtimes.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.overtimes.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>Mesailer</span>
+        </a>
+        
+        <a href="{{ route('admin.employee-debts.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.employee-debts.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-credit-card me-2"></i>
+            <span>Çalışan Borçları</span>
+        </a>
+        
         <a href="{{ route('admin.employees.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('admin.employees.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
             <i class="bi bi-people me-2"></i>
             <span>Çalışanlar</span>
