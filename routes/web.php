@@ -193,6 +193,52 @@ Route::middleware('auth')->group(function () {
     
     // Reports
     Route::get('admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');
+    
+    // Accounting API Routes
+    Route::prefix('api/accounting')->name('api.accounting.')->group(function () {
+        // Parties
+        Route::apiResource('parties', \App\Http\Controllers\Accounting\PartyController::class);
+        
+        // Documents
+        Route::apiResource('documents', \App\Http\Controllers\Accounting\DocumentController::class);
+        Route::post('documents/{document}/reverse', [\App\Http\Controllers\Accounting\DocumentController::class, 'reverse'])
+            ->name('documents.reverse');
+        
+        // Payments
+        Route::apiResource('payments', \App\Http\Controllers\Accounting\PaymentController::class);
+        
+        // Payment Allocations
+        Route::post('payments/{payment}/allocations', [\App\Http\Controllers\Accounting\PaymentAllocationController::class, 'store'])
+            ->name('payments.allocations.store');
+        Route::delete('payments/{payment}/allocations/{allocation}', [\App\Http\Controllers\Accounting\PaymentAllocationController::class, 'destroy'])
+            ->name('payments.allocations.destroy');
+        
+        // Accounting Periods
+        Route::get('periods', [\App\Http\Controllers\Accounting\AccountingPeriodController::class, 'index'])
+            ->name('periods.index');
+        Route::post('periods/{period}/lock', [\App\Http\Controllers\Accounting\AccountingPeriodController::class, 'lock'])
+            ->name('periods.lock');
+        Route::post('periods/{period}/unlock', [\App\Http\Controllers\Accounting\AccountingPeriodController::class, 'unlock'])
+            ->name('periods.unlock');
+        
+        // Reports
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('cash-bank-balance', [\App\Http\Controllers\Accounting\ReportController::class, 'cashBankBalance'])
+                ->name('cash-bank-balance');
+            Route::get('payables-aging', [\App\Http\Controllers\Accounting\ReportController::class, 'payablesAging'])
+                ->name('payables-aging');
+            Route::get('receivables-aging', [\App\Http\Controllers\Accounting\ReportController::class, 'receivablesAging'])
+                ->name('receivables-aging');
+            Route::get('employee-dues-aging', [\App\Http\Controllers\Accounting\ReportController::class, 'employeeDuesAging'])
+                ->name('employee-dues-aging');
+            Route::get('cashflow-forecast', [\App\Http\Controllers\Accounting\ReportController::class, 'cashflowForecast'])
+                ->name('cashflow-forecast');
+            Route::get('party-statement/{party}', [\App\Http\Controllers\Accounting\ReportController::class, 'partyStatement'])
+                ->name('party-statement');
+            Route::get('profit-loss', [\App\Http\Controllers\Accounting\ReportController::class, 'profitLoss'])
+                ->name('profit-loss');
+        });
+    });
 });
 
 Route::get('/', function () {
