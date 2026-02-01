@@ -200,7 +200,7 @@ class ReportController extends Controller
             ->payable()
             ->posted()
             ->unpaid()
-            ->whereIn('document_type', ['payroll_due', 'overtime_due', 'meal_due'])
+            ->whereIn('type', ['payroll_due', 'overtime_due', 'meal_due']) // Schema uses 'type', not 'document_type'
             ->where('due_date', '<=', $asOfDate)
             ->with(['party'])
             ->get();
@@ -223,11 +223,11 @@ class ReportController extends Controller
             }
 
             $byEmployee[$employeeId]['total_due'] += $document->unpaid_amount;
-            $byEmployee[$employeeId]['by_type'][$document->document_type] += $document->unpaid_amount;
+            $byEmployee[$employeeId]['by_type'][$document->type] += $document->unpaid_amount; // Schema uses 'type'
             $byEmployee[$employeeId]['documents'][] = [
                 'id' => $document->id,
                 'document_number' => $document->document_number,
-                'document_type' => $document->document_type,
+                'document_type' => $document->type, // Map 'type' to 'document_type' for API response
                 'due_date' => $document->due_date->toDateString(),
                 'unpaid_amount' => $document->unpaid_amount,
             ];
@@ -430,7 +430,7 @@ class ReportController extends Controller
                     'date' => $doc->document_date->toDateString(),
                     'type' => 'document',
                     'document_number' => $doc->document_number,
-                    'document_type' => $doc->document_type,
+                    'document_type' => $doc->type, // Schema uses 'type', map to 'document_type' for API
                     'description' => $doc->description,
                     'debit' => $debit,
                     'credit' => $credit,
@@ -438,15 +438,16 @@ class ReportController extends Controller
                 ];
             } else {
                 $payment = $item['item'];
-                $debit = $payment->direction === 'inflow' ? $payment->amount : 0;
-                $credit = $payment->direction === 'outflow' ? $payment->amount : 0;
+                // Schema uses 'in'/'out', not 'inflow'/'outflow'
+                $debit = $payment->direction === 'in' ? $payment->amount : 0;
+                $credit = $payment->direction === 'out' ? $payment->amount : 0;
                 $runningBalance += ($debit - $credit);
 
                 $statement[] = [
                     'date' => $payment->payment_date->toDateString(),
                     'type' => 'payment',
                     'payment_number' => $payment->payment_number,
-                    'payment_type' => $payment->payment_type,
+                    'payment_type' => $payment->type, // Schema uses 'type', map to 'payment_type' for API
                     'description' => $payment->description,
                     'debit' => $debit,
                     'credit' => $credit,
@@ -493,7 +494,7 @@ class ReportController extends Controller
             ->forBranch($branchId)
             ->receivable()
             ->posted()
-            ->whereIn('document_type', ['customer_invoice'])
+            ->whereIn('type', ['customer_invoice']) // Schema uses 'type', not 'document_type'
             ->whereBetween('document_date', [$startDate, $endDate])
             ->with(['category'])
             ->get();
@@ -504,7 +505,7 @@ class ReportController extends Controller
             ->forBranch($branchId)
             ->payable()
             ->posted()
-            ->whereIn('document_type', ['supplier_invoice', 'expense_due'])
+            ->whereIn('type', ['supplier_invoice', 'expense_due']) // Schema uses 'type', not 'document_type'
             ->whereBetween('document_date', [$startDate, $endDate])
             ->with(['category'])
             ->get();

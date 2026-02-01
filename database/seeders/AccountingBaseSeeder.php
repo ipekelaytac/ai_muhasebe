@@ -5,9 +5,9 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Company;
 use App\Models\Branch;
-use App\Models\Cashbox;
-use App\Models\BankAccount;
-use App\Models\AccountingPeriod;
+use App\Domain\Accounting\Models\Cashbox;
+use App\Domain\Accounting\Models\BankAccount;
+use App\Domain\Accounting\Models\AccountingPeriod;
 
 class AccountingBaseSeeder extends Seeder
 {
@@ -31,22 +31,24 @@ class AccountingBaseSeeder extends Seeder
                     ]
                 );
 
-                // Create accounting periods for current year
-                $currentYear = now()->year;
-                for ($month = 1; $month <= 12; $month++) {
-                    AccountingPeriod::firstOrCreate(
-                        [
-                            'company_id' => $company->id,
-                            'branch_id' => $branch->id,
-                            'year' => $currentYear,
-                            'month' => $month,
-                        ],
-                        [
-                            'start_date' => now()->setYear($currentYear)->setMonth($month)->startOfMonth(),
-                            'end_date' => now()->setYear($currentYear)->setMonth($month)->endOfMonth(),
-                            'status' => 'open',
-                        ]
-                    );
+                // Create accounting periods for current year (periods are company-level, not branch-level)
+                // Only create once per company
+                if ($branch->id === $company->branches->first()->id) {
+                    $currentYear = now()->year;
+                    for ($month = 1; $month <= 12; $month++) {
+                        AccountingPeriod::firstOrCreate(
+                            [
+                                'company_id' => $company->id,
+                                'year' => $currentYear,
+                                'month' => $month,
+                            ],
+                            [
+                                'start_date' => now()->setYear($currentYear)->setMonth($month)->startOfMonth(),
+                                'end_date' => now()->setYear($currentYear)->setMonth($month)->endOfMonth(),
+                                'status' => 'open',
+                            ]
+                        );
+                    }
                 }
             }
         }

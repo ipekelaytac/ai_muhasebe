@@ -38,14 +38,10 @@ class BankAccount extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    // Schema has NO from_bank_account_id - source account is indicated by bank_account_id
     public function payments()
     {
         return $this->hasMany(Payment::class);
-    }
-
-    public function paymentsFrom()
-    {
-        return $this->hasMany(Payment::class, 'from_bank_account_id');
     }
 
     public function paymentsTo()
@@ -70,29 +66,27 @@ class BankAccount extends Model
     }
 
     // Computed balance (from payments, not stored)
+    // Schema: bank_account_id for source account, to_bank_account_id for destination (NO from_bank_account_id)
     public function getBalanceAttribute()
     {
+        // Regular payments: IN minus OUT where this bank account is the source/destination
         $inflows = $this->payments()
-            ->where('direction', 'inflow')
-            ->where('status', 'posted')
+            ->where('direction', 'in') // Schema uses 'in', not 'inflow'
+            ->where('status', 'confirmed') // Schema uses 'confirmed', not 'posted'
             ->sum('amount');
 
         $outflows = $this->payments()
-            ->where('direction', 'outflow')
-            ->where('status', 'posted')
+            ->where('direction', 'out') // Schema uses 'out', not 'outflow'
+            ->where('status', 'confirmed') // Schema uses 'confirmed', not 'posted'
             ->sum('amount');
 
-        // Transfers: add from transfers, subtract to transfers
+        // Transfers: add transfers TO this bank account (where to_bank_account_id = this)
+        // Transfers OUT are already counted above (where bank_account_id = this and direction = 'out')
         $transfersIn = $this->paymentsTo()
-            ->where('payment_type', 'transfer')
-            ->where('status', 'posted')
+            ->where('type', 'transfer') // Schema uses 'type', not 'payment_type'
+            ->where('status', 'confirmed') // Schema uses 'confirmed', not 'posted'
             ->sum('amount');
 
-        $transfersOut = $this->paymentsFrom()
-            ->where('payment_type', 'transfer')
-            ->where('status', 'posted')
-            ->sum('amount');
-
-        return ($inflows + $transfersIn) - ($outflows + $transfersOut);
+        return ($inflows + $transfersIn) - $outflows;
     }
 }

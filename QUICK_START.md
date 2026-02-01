@@ -1,12 +1,20 @@
 # Quick Start Guide
 
+## Requirements
+- PHP 8.2 or higher
+- Laravel 8.x
+- MySQL/MariaDB
+
 ## Installation Steps
 
 ### 1. Run Migrations
 ```bash
-php artisan migrate
-php artisan db:seed --class=AccountingBaseSeeder
+php artisan migrate:fresh --seed
 ```
+
+This will:
+- Create all database tables (including accounting core tables)
+- Seed base data (companies, branches, users, accounting permissions/roles, default cashboxes, periods)
 
 ### 2. Migrate Existing Data (Optional)
 ```bash

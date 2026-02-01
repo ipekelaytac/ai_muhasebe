@@ -66,7 +66,7 @@ Route::middleware('auth')->group(function () {
         'update' => 'admin.contracts.update',
     ]);
     
-    // Payroll
+    // Payroll - DEPRECATED: Payment routes blocked, use Accounting API for payments
     Route::get('admin/payroll', [PayrollController::class, 'index'])->name('admin.payroll.index');
     Route::get('admin/payroll/create', [PayrollController::class, 'create'])->name('admin.payroll.create');
     Route::post('admin/payroll', [PayrollController::class, 'store'])->name('admin.payroll.store');
@@ -75,14 +75,16 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployeeForm'])->name('admin.payroll.add-employee-form');
     Route::post('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployee'])->name('admin.payroll.add-employee');
     Route::get('admin/payroll/item/{item}', [PayrollController::class, 'showItem'])->name('admin.payroll.item');
-    Route::post('admin/payroll/item/{item}/payment', [PayrollController::class, 'addPayment'])->name('admin.payroll.add-payment');
-    Route::delete('admin/payroll/item/{item}/payment/{payment}', [PayrollController::class, 'deletePayment'])->name('admin.payroll.delete-payment');
+    // DEPRECATED: Payment routes - Use Accounting API instead
+    // Route::post('admin/payroll/item/{item}/payment', [PayrollController::class, 'addPayment'])->name('admin.payroll.add-payment');
+    // Route::delete('admin/payroll/item/{item}/payment/{payment}', [PayrollController::class, 'deletePayment'])->name('admin.payroll.delete-payment');
     Route::post('admin/payroll/item/{item}/deduction', [PayrollController::class, 'addDeduction'])->name('admin.payroll.add-deduction');
     Route::delete('admin/payroll/item/{item}/deduction/{deduction}', [PayrollController::class, 'deleteDeduction'])->name('admin.payroll.delete-deduction');
     Route::post('admin/payroll/item/{item}/settle-advance', [PayrollController::class, 'settleAdvance'])->name('admin.payroll.settle-advance');
     Route::delete('admin/payroll/item/{item}/advance-settlement/{settlement}', [PayrollController::class, 'deleteAdvanceSettlement'])->name('admin.payroll.delete-advance-settlement');
-    Route::post('admin/payroll/item/{item}/debt-payment', [PayrollController::class, 'addDebtPayment'])->name('admin.payroll.add-debt-payment');
-    Route::delete('admin/payroll/item/{item}/debt-payment/{debtPayment}', [PayrollController::class, 'deleteDebtPayment'])->name('admin.payroll.delete-debt-payment');
+    // DEPRECATED: Debt payment routes - Use Accounting API instead
+    // Route::post('admin/payroll/item/{item}/debt-payment', [PayrollController::class, 'addDebtPayment'])->name('admin.payroll.add-debt-payment');
+    // Route::delete('admin/payroll/item/{item}/debt-payment/{debtPayment}', [PayrollController::class, 'deleteDebtPayment'])->name('admin.payroll.delete-debt-payment');
     
     // Payroll Deduction Types
     Route::resource('admin/payroll/deduction-types', PayrollDeductionTypeController::class)->names([
@@ -94,15 +96,15 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'admin.payroll.deduction-types.destroy',
     ]);
     
-    // Advances
-    Route::resource('admin/advances', AdvanceController::class)->names([
-        'index' => 'admin.advances.index',
-        'create' => 'admin.advances.create',
-        'store' => 'admin.advances.store',
-        'edit' => 'admin.advances.edit',
-        'update' => 'admin.advances.update',
-        'destroy' => 'admin.advances.destroy',
-    ]);
+    // Advances - DEPRECATED: Use Accounting API instead
+    // Route::resource('admin/advances', AdvanceController::class)->names([
+    //     'index' => 'admin.advances.index',
+    //     'create' => 'admin.advances.create',
+    //     'store' => 'admin.advances.store',
+    //     'edit' => 'admin.advances.edit',
+    //     'update' => 'admin.advances.update',
+    //     'destroy' => 'admin.advances.destroy',
+    // ]);
     
     // Meal Allowance
     Route::get('admin/meal-allowance', [MealAllowanceController::class, 'index'])->name('admin.meal-allowance.index');
@@ -127,12 +129,12 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'admin.customers.destroy',
     ]);
     
-    // Customer Transactions
-    Route::get('admin/customers/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->name('admin.customers.transactions.create');
-    Route::post('admin/customers/{customer}/transactions', [CustomerTransactionController::class, 'store'])->name('admin.customers.transactions.store');
-    Route::get('admin/customers/{customer}/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->name('admin.customers.transactions.edit');
-    Route::put('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->name('admin.customers.transactions.update');
-    Route::delete('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->name('admin.customers.transactions.destroy');
+    // Customer Transactions - DEPRECATED: Use Accounting API instead
+    // Route::get('admin/customers/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->name('admin.customers.transactions.create');
+    // Route::post('admin/customers/{customer}/transactions', [CustomerTransactionController::class, 'store'])->name('admin.customers.transactions.store');
+    // Route::get('admin/customers/{customer}/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->name('admin.customers.transactions.edit');
+    // Route::put('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->name('admin.customers.transactions.update');
+    // Route::delete('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->name('admin.customers.transactions.destroy');
     
     // Checks
     Route::resource('admin/checks', CheckController::class)->names([
@@ -145,26 +147,26 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'admin.checks.destroy',
     ]);
     
-    // Overtimes
-    Route::resource('admin/overtimes', OvertimeController::class)->names([
-        'index' => 'admin.overtimes.index',
-        'create' => 'admin.overtimes.create',
-        'store' => 'admin.overtimes.store',
-        'edit' => 'admin.overtimes.edit',
-        'update' => 'admin.overtimes.update',
-        'destroy' => 'admin.overtimes.destroy',
-    ]);
+    // Overtimes - DEPRECATED: Use Accounting API instead
+    // Route::resource('admin/overtimes', OvertimeController::class)->names([
+    //     'index' => 'admin.overtimes.index',
+    //     'create' => 'admin.overtimes.create',
+    //     'store' => 'admin.overtimes.store',
+    //     'edit' => 'admin.overtimes.edit',
+    //     'update' => 'admin.overtimes.update',
+    //     'destroy' => 'admin.overtimes.destroy',
+    // ]);
     
-    // Employee Debts
-    Route::resource('admin/employee-debts', EmployeeDebtController::class)->names([
-        'index' => 'admin.employee-debts.index',
-        'create' => 'admin.employee-debts.create',
-        'store' => 'admin.employee-debts.store',
-        'show' => 'admin.employee-debts.show',
-        'edit' => 'admin.employee-debts.edit',
-        'update' => 'admin.employee-debts.update',
-        'destroy' => 'admin.employee-debts.destroy',
-    ]);
+    // Employee Debts - DEPRECATED: Use Accounting API instead
+    // Route::resource('admin/employee-debts', EmployeeDebtController::class)->names([
+    //     'index' => 'admin.employee-debts.index',
+    //     'create' => 'admin.employee-debts.create',
+    //     'store' => 'admin.employee-debts.store',
+    //     'show' => 'admin.employee-debts.show',
+    //     'edit' => 'admin.employee-debts.edit',
+    //     'update' => 'admin.employee-debts.update',
+    //     'destroy' => 'admin.employee-debts.destroy',
+    // ]);
     
     // Finance Categories
     Route::resource('admin/finance/categories', FinanceCategoryController::class)->names([
@@ -176,20 +178,20 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'admin.finance.categories.destroy',
     ]);
     
-    // Finance Transactions
-    Route::resource('admin/finance/transactions', FinanceTransactionController::class)->names([
-        'index' => 'admin.finance.transactions.index',
-        'create' => 'admin.finance.transactions.create',
-        'store' => 'admin.finance.transactions.store',
-        'edit' => 'admin.finance.transactions.edit',
-        'update' => 'admin.finance.transactions.update',
-        'destroy' => 'admin.finance.transactions.destroy',
-    ]);
-    Route::get('admin/finance/reports', [FinanceTransactionController::class, 'reports'])->name('admin.finance.reports');
-    Route::get('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'showAttachment'])
-        ->name('admin.finance.transactions.attachment.show');
-    Route::delete('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'destroyAttachment'])
-        ->name('admin.finance.transactions.attachment.destroy');
+    // Finance Transactions - DEPRECATED: Use Accounting API instead
+    // Route::resource('admin/finance/transactions', FinanceTransactionController::class)->names([
+    //     'index' => 'admin.finance.transactions.index',
+    //     'create' => 'admin.finance.transactions.create',
+    //     'store' => 'admin.finance.transactions.store',
+    //     'edit' => 'admin.finance.transactions.edit',
+    //     'update' => 'admin.finance.transactions.update',
+    //     'destroy' => 'admin.finance.transactions.destroy',
+    // ]);
+    // Route::get('admin/finance/reports', [FinanceTransactionController::class, 'reports'])->name('admin.finance.reports');
+    // Route::get('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'showAttachment'])
+    //     ->name('admin.finance.transactions.attachment.show');
+    // Route::delete('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'destroyAttachment'])
+    //     ->name('admin.finance.transactions.attachment.destroy');
     
     // Reports
     Route::get('admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');

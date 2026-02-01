@@ -12,23 +12,29 @@ class DocumentLine extends Model
     protected $fillable = [
         'document_id',
         'line_number',
-        'category_id',
         'description',
         'quantity',
+        'unit', // Schema has unit column
         'unit_price',
-        'amount',
+        'discount_percent', // Schema has discount_percent
+        'discount_amount', // Schema has discount_amount
+        'subtotal', // Schema uses subtotal, not amount
         'tax_rate',
         'tax_amount',
-        'metadata',
+        'total', // Schema has total column
+        'category_id',
+        // Schema does NOT have metadata column - use tags (json) if needed
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:3',
-        'unit_price' => 'decimal:2',
-        'amount' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
+        'quantity' => 'decimal:4', // Schema: decimal(12, 4)
+        'unit_price' => 'decimal:4', // Schema: decimal(15, 4)
+        'discount_percent' => 'decimal:2', // Schema: decimal(5, 2)
+        'discount_amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'tax_rate' => 'decimal:2', // Schema: decimal(5, 2)
         'tax_amount' => 'decimal:2',
-        'metadata' => 'array',
+        'total' => 'decimal:2',
     ];
 
     // Relationships
@@ -42,12 +48,10 @@ class DocumentLine extends Model
         return $this->belongsTo(FinanceCategory::class);
     }
 
-    // Computed
-    public function getTotalAmountAttribute()
+    // Computed (for backward compatibility if code accesses ->amount)
+    public function getAmountAttribute()
     {
-        if ($this->quantity && $this->unit_price) {
-            return $this->quantity * $this->unit_price;
-        }
-        return $this->amount;
+        // Schema uses subtotal/total, not amount
+        return $this->subtotal ?? 0;
     }
 }

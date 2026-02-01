@@ -23,13 +23,12 @@ class StorePaymentRequest extends FormRequest
             'party_id' => 'nullable|exists:parties,id',
             'cashbox_id' => 'required_if:payment_type,cash_in,cash_out|nullable|exists:cashboxes,id',
             'bank_account_id' => 'required_if:payment_type,bank_in,bank_out,pos_in|nullable|exists:bank_accounts,id',
-            'from_cashbox_id' => 'required_if:payment_type,transfer|nullable|exists:cashboxes,id',
+            // Schema has to_* columns but NOT from_* columns - source is cashbox_id/bank_account_id
             'to_cashbox_id' => 'required_if:payment_type,transfer|nullable|exists:cashboxes,id',
-            'from_bank_account_id' => 'required_if:payment_type,transfer|nullable|exists:bank_accounts,id',
             'to_bank_account_id' => 'required_if:payment_type,transfer|nullable|exists:bank_accounts,id',
             'description' => 'nullable|string|max:1000',
             'payment_number' => 'nullable|string|max:100',
-            'metadata' => 'nullable|array',
+            // Schema does NOT have metadata column - validation allows but won't persist
         ];
     }
 

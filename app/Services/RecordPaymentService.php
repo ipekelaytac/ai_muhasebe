@@ -8,9 +8,14 @@ use App\Models\Cashbox;
 use App\Models\BankAccount;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
+/**
+ * @deprecated This service is deprecated. Use App\Domain\Accounting\Services\PaymentService instead.
+ * This class is kept for backward compatibility during migration only.
+ */
 class RecordPaymentService
 {
     /**
@@ -19,14 +24,42 @@ class RecordPaymentService
      * @param array $data
      * @return Payment
      * @throws \Exception
+     * @deprecated Use App\Domain\Accounting\Services\PaymentService::createPayment() instead
      */
     public function create(array $data): Payment
     {
+        // Delegate to Domain service
+        $paymentService = app(\App\Domain\Accounting\Services\PaymentService::class);
+        
+        // Map old data format to new format
+        $newData = [
+            'company_id' => $data['company_id'],
+            'branch_id' => $data['branch_id'] ?? null,
+            'type' => $data['payment_type'] ?? $data['type'] ?? 'cash_out',
+            'direction' => $data['direction'] === 'outflow' ? 'out' : ($data['direction'] === 'inflow' ? 'in' : $data['direction']),
+            'party_id' => $data['party_id'] ?? null,
+            'cashbox_id' => $data['cashbox_id'] ?? null,
+            'bank_account_id' => $data['bank_account_id'] ?? null,
+            'to_cashbox_id' => $data['to_cashbox_id'] ?? null,
+            'to_bank_account_id' => $data['to_bank_account_id'] ?? null,
+            'payment_date' => $data['payment_date'],
+            'amount' => $data['amount'],
+            'fee_amount' => $data['fee_amount'] ?? 0,
+            'description' => $data['description'] ?? null,
+        ];
+        
+        return $paymentService->createPayment($newData);
+    }
+    
+    /**
+     * @deprecated This method is deprecated. Use App\Domain\Accounting\Services\PaymentService instead.
+     */
+    private function createLegacy(array $data): Payment
+    {
         return DB::transaction(function () use ($data) {
-            // Validate period is not locked
+            // Validate period is not locked (periods are company-level only)
             $period = AccountingPeriod::findOrCreateForDate(
                 $data['company_id'],
-                $data['branch_id'],
                 $data['payment_date']
             );
 
@@ -37,47 +70,66 @@ class RecordPaymentService
             // Validate payment type constraints
             $this->validatePaymentType($data);
 
-            // Validate balance for outflows
-            if ($data['direction'] === 'outflow') {
+            // Validate balance for outflows (map 'outflow' to 'out' for schema)
+            $direction = $data['direction'] === 'outflow' ? 'out' : ($data['direction'] === 'inflow' ? 'in' : $data['direction']);
+            if ($direction === 'out') {
                 $this->validateBalance($data);
             }
 
-            // Create payment
-            $payment = Payment::create([
+            // Extract period year/month from payment date
+            $paymentDate = Carbon::parse($data['payment_date']);
+
+            // Build payment data array (only include columns that exist in schema)
+            $paymentData = [
                 'company_id' => $data['company_id'],
                 'branch_id' => $data['branch_id'],
-                'accounting_period_id' => $period->id,
                 'payment_number' => $data['payment_number'] ?? $this->generatePaymentNumber($data),
-                'payment_type' => $data['payment_type'],
-                'direction' => $data['direction'],
-                'status' => $data['status'] ?? 'posted',
+                'type' => $data['payment_type'], // Map payment_type input to type column
+                'direction' => $direction, // Map inflow/outflow to in/out
+                'status' => $data['status'] ?? 'confirmed', // Schema default is 'confirmed', not 'posted'
                 'party_id' => $data['party_id'] ?? null,
                 'cashbox_id' => $data['cashbox_id'] ?? null,
                 'bank_account_id' => $data['bank_account_id'] ?? null,
-                'from_cashbox_id' => $data['from_cashbox_id'] ?? null,
-                'to_cashbox_id' => $data['to_cashbox_id'] ?? null,
-                'from_bank_account_id' => $data['from_bank_account_id'] ?? null,
+                'to_cashbox_id' => $data['to_cashbox_id'] ?? null, // Schema has to_* but NOT from_*
                 'to_bank_account_id' => $data['to_bank_account_id'] ?? null,
                 'payment_date' => $data['payment_date'],
+                'period_year' => $paymentDate->year, // Schema uses period_year/month, not FK
+                'period_month' => $paymentDate->month,
                 'amount' => $data['amount'],
-                'allocated_amount' => 0,
-                'unallocated_amount' => $data['amount'],
                 'description' => $data['description'] ?? null,
-                'metadata' => $data['metadata'] ?? null,
                 'created_by' => Auth::id(),
-            ]);
+            ];
+            
+            // Calculate net_amount (schema requires net_amount - no default value)
+            if (isset($data['fee_amount'])) {
+                $paymentData['fee_amount'] = $data['fee_amount'];
+                $paymentData['net_amount'] = $data['amount'] - $data['fee_amount'];
+            } else {
+                $paymentData['fee_amount'] = 0; // Default fee_amount
+                $paymentData['net_amount'] = $data['amount']; // Default: net = amount if no fee
+            }
+            
+            // Filter to only existing columns (safety check - schema does NOT have metadata)
+            // Note: net_amount is REQUIRED, so filter must keep it
+            $paymentData = $this->filterByExistingColumns('payments', $paymentData);
 
-            // Log audit
-            AuditLog::create([
+            // Create payment (schema uses period_year/month, NOT accounting_period_id FK)
+            // Schema does NOT have allocated_amount/unallocated_amount/metadata columns - these are calculated
+            $payment = Payment::create($paymentData);
+
+            // Log audit (schema uses 'action' not 'event', no branch_id/description, only created_at not updated_at)
+            $auditData = [
                 'company_id' => $payment->company_id,
-                'branch_id' => $payment->branch_id,
                 'auditable_type' => Payment::class,
                 'auditable_id' => $payment->id,
-                'user_id' => Auth::id(),
-                'event' => 'created',
+                'action' => 'create', // Schema uses 'action' enum, not 'event'
                 'new_values' => $payment->toArray(),
-                'description' => "Payment {$payment->payment_number} created",
-            ]);
+                'user_id' => Auth::id(),
+                'created_at' => now(), // Schema only has created_at, not updated_at
+            ];
+            // Filter to only existing columns (schema does NOT have branch_id/description/event/updated_at)
+            $auditData = $this->filterByExistingColumns('audit_logs', $auditData);
+            AuditLog::create($auditData);
 
             return $payment->fresh();
         });
@@ -89,7 +141,7 @@ class RecordPaymentService
     private function validatePaymentType(array $data): void
     {
         $type = $data['payment_type'];
-        $direction = $data['direction'];
+        $direction = $data['direction']; // Accept inflow/outflow from input, will map to in/out
 
         switch ($type) {
             case 'cash_in':
@@ -113,11 +165,12 @@ class RecordPaymentService
                 }
                 break;
             case 'transfer':
-                // Transfer must have from and to accounts
-                $hasFrom = isset($data['from_cashbox_id']) || isset($data['from_bank_account_id']);
+                // Transfer: from account is cashbox_id or bank_account_id, to account is to_cashbox_id or to_bank_account_id
+                // Schema has to_* columns but NOT from_* columns (from is indicated by cashbox_id/bank_account_id)
+                $hasFrom = isset($data['cashbox_id']) || isset($data['bank_account_id']);
                 $hasTo = isset($data['to_cashbox_id']) || isset($data['to_bank_account_id']);
                 if (!$hasFrom || !$hasTo) {
-                    throw new \Exception('transfer requires from and to accounts');
+                    throw new \Exception('transfer requires from account (cashbox_id or bank_account_id) and to account (to_cashbox_id or to_bank_account_id)');
                 }
                 break;
             case 'pos_in':
@@ -130,11 +183,13 @@ class RecordPaymentService
 
     /**
      * Validate balance for outflows
+     * Schema uses cashbox_id/bank_account_id for source account (NOT from_cashbox_id/from_bank_account_id)
      */
     private function validateBalance(array $data): void
     {
         $amount = $data['amount'];
 
+        // For regular payments: check cashbox_id or bank_account_id
         if (isset($data['cashbox_id'])) {
             $cashbox = Cashbox::findOrFail($data['cashbox_id']);
             $balance = $cashbox->balance;
@@ -151,21 +206,8 @@ class RecordPaymentService
             }
         }
 
-        if (isset($data['from_cashbox_id'])) {
-            $cashbox = Cashbox::findOrFail($data['from_cashbox_id']);
-            $balance = $cashbox->balance;
-            if ($balance < $amount) {
-                throw new \Exception("Insufficient cash balance for transfer. Available: {$balance}, Required: {$amount}");
-            }
-        }
-
-        if (isset($data['from_bank_account_id'])) {
-            $bankAccount = BankAccount::findOrFail($data['from_bank_account_id']);
-            $balance = $bankAccount->balance;
-            if ($balance < $amount) {
-                throw new \Exception("Insufficient bank balance for transfer. Available: {$balance}, Required: {$amount}");
-            }
-        }
+        // For transfers: source account is cashbox_id or bank_account_id (schema has NO from_* columns)
+        // The balance check above already covers transfers since they use cashbox_id/bank_account_id
     }
 
     /**
@@ -178,16 +220,44 @@ class RecordPaymentService
         $year = $date->year;
         $month = str_pad($date->month, 2, '0', STR_PAD_LEFT);
 
+        // Query using 'type' column as per schema (not 'payment_type')
+        // Unique constraint is on company_id + payment_number (NOT branch_id, NOT type)
+        // So payment numbers must be unique across ALL types for the same company
+        // Query by payment_number pattern to find the highest sequence number across all types
+        $pattern = sprintf('%s-%s%s-%%', $prefix, $year, $month);
+        
         $lastPayment = Payment::where('company_id', $data['company_id'])
-            ->where('branch_id', $data['branch_id'])
-            ->where('payment_type', $data['payment_type'])
-            ->whereYear('payment_date', $year)
-            ->whereMonth('payment_date', $date->month)
-            ->orderBy('id', 'desc')
+            ->where('payment_number', 'like', $pattern)
+            ->orderBy('payment_number', 'desc')
             ->first();
 
-        $sequence = $lastPayment ? (int) substr($lastPayment->payment_number ?? '0000', -4) + 1 : 1;
+        if ($lastPayment) {
+            // Extract sequence from payment_number (last 4 digits)
+            $lastNumber = $lastPayment->payment_number;
+            $lastSequence = (int) substr($lastNumber, -4);
+            $sequence = $lastSequence + 1;
+        } else {
+            $sequence = 1;
+        }
 
         return sprintf('%s-%s%s-%04d', $prefix, $year, $month, $sequence);
+    }
+
+    /**
+     * Filter array to only include columns that exist in the table schema
+     *
+     * @param string $table
+     * @param array $data
+     * @return array
+     */
+    private function filterByExistingColumns(string $table, array $data): array
+    {
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (Schema::hasColumn($table, $key)) {
+                $filtered[$key] = $value;
+            }
+        }
+        return $filtered;
     }
 }

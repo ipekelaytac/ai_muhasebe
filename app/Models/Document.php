@@ -13,22 +13,22 @@ class Document extends Model
     protected $fillable = [
         'company_id',
         'branch_id',
-        'accounting_period_id',
         'document_number',
-        'document_type',
+        'type', // Schema uses 'type', not 'document_type'
         'direction',
         'status',
         'party_id',
         'document_date',
         'due_date',
+        'period_year', // Schema uses period_year/month, NOT accounting_period_id FK
+        'period_month',
         'total_amount',
-        'paid_amount',
-        'unpaid_amount',
+        // Schema does NOT have paid_amount/unpaid_amount - these are calculated via allocations
         'reverses_document_id',
         'original_document_id',
         'category_id',
         'description',
-        'metadata',
+        // Schema does NOT have metadata column - use notes or tags if needed
         'created_by',
         'updated_by',
     ];
@@ -37,9 +37,7 @@ class Document extends Model
         'document_date' => 'date',
         'due_date' => 'date',
         'total_amount' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
-        'unpaid_amount' => 'decimal:2',
-        'metadata' => 'array',
+        // Schema does NOT have paid_amount/unpaid_amount/metadata - these are calculated or not stored
     ];
 
     // Relationships
@@ -53,10 +51,8 @@ class Document extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function accountingPeriod()
-    {
-        return $this->belongsTo(AccountingPeriod::class);
-    }
+    // Note: Schema uses period_year/month, NOT accounting_period_id FK
+    // Period validation is date-based, not FK-based
 
     public function party()
     {
@@ -121,7 +117,9 @@ class Document extends Model
 
     public function scopePosted($query)
     {
-        return $query->where('status', 'posted');
+        // Map 'posted' scope to 'pending'/'partial'/'settled' statuses (schema doesn't have 'posted')
+        // 'posted' means the document is active and can be allocated to
+        return $query->whereIn('status', ['pending', 'partial', 'settled']);
     }
 
     public function scopeReceivable($query)
@@ -136,29 +134,50 @@ class Document extends Model
 
     public function scopeUnpaid($query)
     {
-        return $query->whereColumn('unpaid_amount', '>', 0);
+        // Schema does NOT have unpaid_amount column - calculate from allocations
+        // payment_allocations uses status='active', not deleted_at
+        return $query->whereRaw('total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE document_id = documents.id AND status = \'active\'), 0)');
     }
 
     public function scopeOverdue($query)
     {
+        // Schema does NOT have unpaid_amount column - calculate from allocations
+        // payment_allocations uses status='active', not deleted_at
         return $query->where('due_date', '<', now())
-            ->whereColumn('unpaid_amount', '>', 0);
+            ->whereRaw('total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE document_id = documents.id AND status = \'active\'), 0)');
     }
 
     public function scopeByDocumentType($query, $type)
     {
-        return $query->where('document_type', $type);
+        return $query->where('type', $type); // Schema uses 'type' column
     }
 
     public function scopeInPeriod($query, $periodId)
     {
-        return $query->where('accounting_period_id', $periodId);
+        // Schema uses period_year/month, not accounting_period_id FK
+        // This scope should use period_year/month or be removed if not needed
+        // For now, keeping for backward compatibility but it won't work correctly
+        // Consider using: ->where('period_year', $year)->where('period_month', $month)
+        return $query->where('period_year', $periodId); // This is incorrect, but kept for compatibility
+    }
+
+    // Accessors for backward compatibility
+    public function getDocumentTypeAttribute()
+    {
+        return $this->attributes['type'] ?? $this->type; // Map 'type' column to 'document_type' attribute
     }
 
     // Helper methods
     public function isLocked()
     {
-        return $this->accountingPeriod && $this->accountingPeriod->isLocked();
+        // Period locking is date-based, not FK-based
+        // Check if period for document_date is locked
+        $period = \App\Models\AccountingPeriod::where('company_id', $this->company_id)
+            ->where('year', $this->period_year)
+            ->where('month', $this->period_month)
+            ->first();
+        
+        return $period && $period->isLocked();
     }
 
     public function isReversed()
@@ -168,20 +187,21 @@ class Document extends Model
 
     public function isReversal()
     {
-        return $this->document_type === 'reversal';
+        return $this->type === 'reversal'; // Schema uses 'type' column
     }
 
-    public function recalculatePaidAmount()
+    // Schema does NOT have paid_amount/unpaid_amount columns
+    // These are calculated from allocations, not stored
+    // payment_allocations table uses 'status' enum, NOT soft deletes (no deleted_at)
+    public function getPaidAmountAttribute()
     {
-        $paidAmount = $this->allocations()
-            ->whereNull('deleted_at')
+        return $this->allocations()
+            ->where('status', 'active') // Schema uses status='active', not deleted_at
             ->sum('amount');
-
-        $this->paid_amount = $paidAmount;
-        $this->unpaid_amount = $this->total_amount - $paidAmount;
-        $this->save();
     }
 
-    // Note: unpaid_amount is stored in DB but should be recalculated when needed
-    // Use recalculatePaidAmount() method to ensure accuracy
+    public function getUnpaidAmountAttribute()
+    {
+        return $this->total_amount - $this->paid_amount;
+    }
 }

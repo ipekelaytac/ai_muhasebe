@@ -7,6 +7,7 @@ use App\Models\AccountingPeriod;
 use App\Models\AuditLog;
 use App\Services\CreateObligationService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 
 class ReverseDocumentService
@@ -38,10 +39,9 @@ class ReverseDocumentService
                 throw new \Exception('Cannot reverse canceled document');
             }
 
-            // Check if period is locked - reversals must be in open period
+            // Check if period is locked - reversals must be in open period (periods are company-level only)
             $currentPeriod = AccountingPeriod::findOrCreateForDate(
                 $document->company_id,
-                $document->branch_id,
                 now()->toDateString()
             );
 
@@ -55,17 +55,14 @@ class ReverseDocumentService
                 'branch_id' => $document->branch_id,
                 'document_type' => 'reversal',
                 'direction' => $document->direction === 'receivable' ? 'payable' : 'receivable', // Reverse direction
-                'status' => 'posted',
+                'status' => 'pending', // Schema uses 'pending', not 'posted'
                 'party_id' => $document->party_id,
                 'document_date' => now()->toDateString(),
                 'due_date' => now()->toDateString(),
                 'total_amount' => $document->unpaid_amount, // Only reverse unpaid amount
                 'category_id' => $document->category_id,
                 'description' => "Reversal of {$document->document_number}" . ($reason ? ": {$reason}" : ''),
-                'metadata' => [
-                    'reversal_reason' => $reason,
-                    'original_document_id' => $document->id,
-                ],
+                // Schema does NOT have metadata column - store reversal info in description/notes if needed
             ]);
 
             // Link reversal to original
@@ -83,20 +80,40 @@ class ReverseDocumentService
             // Option 2: Just mark document as reversed and let the reversal document handle the balance
             // We'll go with option 2 for simplicity - the reversal document will offset the balance
 
-            // Log audit
-            AuditLog::create([
+            // Log audit (schema uses 'action' not 'event', no branch_id/description, only created_at not updated_at)
+            $auditData = [
                 'company_id' => $document->company_id,
-                'branch_id' => $document->branch_id,
                 'auditable_type' => Document::class,
                 'auditable_id' => $document->id,
-                'user_id' => Auth::id(),
-                'event' => 'reversed',
-                'old_values' => ['status' => 'posted'],
+                'action' => 'status_change', // Schema uses 'action' enum, not 'event'
+                'old_values' => ['status' => $document->status], // Use actual document status
                 'new_values' => ['status' => 'reversed', 'reversal_document_id' => $reversalDocument->id],
-                'description' => "Document {$document->document_number} reversed by {$reversalDocument->document_number}",
-            ]);
+                'user_id' => Auth::id(),
+                'created_at' => now(), // Schema only has created_at, not updated_at
+            ];
+            // Filter to only existing columns (schema does NOT have branch_id/description/event/updated_at)
+            $auditData = $this->filterByExistingColumns('audit_logs', $auditData);
+            AuditLog::create($auditData);
 
             return $reversalDocument;
         });
+    }
+
+    /**
+     * Filter array to only include columns that exist in the table schema
+     *
+     * @param string $table
+     * @param array $data
+     * @return array
+     */
+    private function filterByExistingColumns(string $table, array $data): array
+    {
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (Schema::hasColumn($table, $key)) {
+                $filtered[$key] = $value;
+            }
+        }
+        return $filtered;
     }
 }

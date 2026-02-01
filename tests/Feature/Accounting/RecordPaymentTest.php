@@ -60,7 +60,7 @@ class RecordPaymentTest extends TestCase
 
         $this->assertInstanceOf(Payment::class, $payment);
         $this->assertEquals('cash_in', $payment->payment_type);
-        $this->assertEquals('inflow', $payment->direction);
+        $this->assertEquals('in', $payment->direction); // Schema uses 'in'/'out', not 'inflow'/'outflow'
         $this->assertEquals(500.00, $payment->amount);
         $this->assertEquals(0, $payment->allocated_amount);
         $this->assertEquals(500.00, $payment->unallocated_amount);

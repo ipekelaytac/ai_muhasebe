@@ -4,16 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentAllocation extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    // Schema does NOT have deleted_at - uses status='active'/'cancelled' instead
 
     protected $fillable = [
         'payment_id',
         'document_id',
         'amount',
+        'allocation_date', // Schema has allocation_date
+        'status', // Schema uses status enum ('active', 'cancelled')
         'notes',
         'created_by',
     ];
@@ -38,22 +40,6 @@ class PaymentAllocation extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // Events
-    protected static function booted()
-    {
-        static::created(function ($allocation) {
-            $allocation->payment->recalculateAllocatedAmount();
-            $allocation->document->recalculatePaidAmount();
-        });
-
-        static::updated(function ($allocation) {
-            $allocation->payment->recalculateAllocatedAmount();
-            $allocation->document->recalculatePaidAmount();
-        });
-
-        static::deleted(function ($allocation) {
-            $allocation->payment->recalculateAllocatedAmount();
-            $allocation->document->recalculatePaidAmount();
-        });
-    }
+    // Note: Amounts are calculated via accessors (Payment::getAllocatedAmountAttribute, Document::getPaidAmountAttribute)
+    // No need to recalculate on save - accessors calculate on-demand from allocations with status='active'
 }

@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             EmployeeContractSeeder::class,
             PayrollDeductionTypeSeeder::class,
             FinanceCategorySeeder::class,
+            AccountingSeeder::class, // Accounting system: permissions, roles, base data
         ]);
     }
 }

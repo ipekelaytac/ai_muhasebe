@@ -6,10 +6,10 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
-use App\Models\AccountingPeriod;
-use App\Models\Document;
-use App\Services\CreateObligationService;
-use App\Services\LockPeriodService;
+use App\Domain\Accounting\Models\AccountingPeriod;
+use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Services\DocumentService;
+use App\Domain\Accounting\Services\PeriodService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class PeriodLockTest extends TestCase
@@ -20,7 +20,8 @@ class PeriodLockTest extends TestCase
     protected $company;
     protected $branch;
     protected $period;
-    protected $lockPeriodService;
+    protected $periodService;
+    protected $documentService;
 
     protected function setUp(): void
     {
@@ -32,7 +33,6 @@ class PeriodLockTest extends TestCase
         
         $this->period = AccountingPeriod::create([
             'company_id' => $this->company->id,
-            'branch_id' => $this->branch->id,
             'year' => now()->year,
             'month' => now()->month,
             'start_date' => now()->startOfMonth(),
@@ -41,12 +41,18 @@ class PeriodLockTest extends TestCase
         ]);
 
         $this->actingAs($this->user);
-        $this->lockPeriodService = app(LockPeriodService::class);
+        $this->periodService = app(PeriodService::class);
+        $this->documentService = app(DocumentService::class);
     }
 
     public function test_can_lock_period()
     {
-        $lockedPeriod = $this->lockPeriodService->lock($this->period, 'Month end close');
+        $lockedPeriod = $this->periodService->lockPeriod(
+            $this->company->id,
+            $this->period->year,
+            $this->period->month,
+            'Month end close'
+        );
 
         $this->assertEquals('locked', $lockedPeriod->status);
         $this->assertEquals($this->user->id, $lockedPeriod->locked_by);
@@ -57,20 +63,19 @@ class PeriodLockTest extends TestCase
     public function test_cannot_create_document_in_locked_period()
     {
         // Lock period
-        $this->lockPeriodService->lock($this->period);
+        $this->periodService->lockPeriod(
+            $this->company->id,
+            $this->period->year,
+            $this->period->month
+        );
 
-        $party = \App\Models\Party::factory()->create([
+        $party = Party::factory()->create([
             'company_id' => $this->company->id,
-            'branch_id' => $this->branch->id,
         ]);
-
-        $createObligationService = app(CreateObligationService::class);
 
         $data = [
             'company_id' => $this->company->id,
-            'branch_id' => $this->branch->id,
-            'document_type' => 'supplier_invoice',
-            'direction' => 'payable',
+            'type' => 'supplier_invoice',
             'party_id' => $party->id,
             'document_date' => now()->toDateString(),
             'due_date' => now()->addDays(30)->toDateString(),
@@ -78,18 +83,28 @@ class PeriodLockTest extends TestCase
         ];
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Cannot create document in locked period');
+        $this->expectExceptionMessage('kilitli');
 
-        $createObligationService->create($data);
+        $this->documentService->createDocument($data);
     }
 
     public function test_can_unlock_period()
     {
         // Lock first
-        $this->lockPeriodService->lock($this->period, 'Test lock');
+        $this->periodService->lockPeriod(
+            $this->company->id,
+            $this->period->year,
+            $this->period->month,
+            'Test lock'
+        );
 
         // Unlock
-        $unlockedPeriod = $this->lockPeriodService->unlock($this->period, 'Test unlock');
+        $unlockedPeriod = $this->periodService->unlockPeriod(
+            $this->company->id,
+            $this->period->year,
+            $this->period->month,
+            'Test unlock'
+        );
 
         $this->assertEquals('open', $unlockedPeriod->status);
         $this->assertNull($unlockedPeriod->locked_by);

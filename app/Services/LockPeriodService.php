@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AccountingPeriod;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 
 class LockPeriodService
@@ -30,17 +31,19 @@ class LockPeriodService
             $period->lock_notes = $notes;
             $period->save();
 
-            // Log audit
-            AuditLog::create([
+            // Log audit (schema uses 'action' not 'event', no branch_id/description, only created_at not updated_at)
+            $auditData = [
                 'company_id' => $period->company_id,
-                'branch_id' => $period->branch_id,
                 'auditable_type' => AccountingPeriod::class,
                 'auditable_id' => $period->id,
-                'user_id' => Auth::id(),
-                'event' => 'locked',
+                'action' => 'lock', // Schema uses 'action' enum, not 'event'
                 'new_values' => $period->toArray(),
-                'description' => "Period {$period->year}-{$period->month} locked",
-            ]);
+                'user_id' => Auth::id(),
+                'created_at' => now(), // Schema only has created_at, not updated_at
+            ];
+            // Filter to only existing columns (schema does NOT have branch_id/description/event/updated_at)
+            $auditData = $this->filterByExistingColumns('audit_logs', $auditData);
+            AuditLog::create($auditData);
 
             return $period->fresh();
         });
@@ -67,20 +70,40 @@ class LockPeriodService
             $period->lock_notes = $reason ? ($period->lock_notes . "\nUnlocked: " . $reason) : $period->lock_notes;
             $period->save();
 
-            // Log audit
-            AuditLog::create([
+            // Log audit (schema uses 'action' not 'event', no branch_id/description, only created_at not updated_at)
+            $auditData = [
                 'company_id' => $period->company_id,
-                'branch_id' => $period->branch_id,
                 'auditable_type' => AccountingPeriod::class,
                 'auditable_id' => $period->id,
-                'user_id' => Auth::id(),
-                'event' => 'unlocked',
+                'action' => 'unlock', // Schema uses 'action' enum, not 'event'
                 'old_values' => ['status' => 'locked'],
                 'new_values' => ['status' => 'open'],
-                'description' => "Period {$period->year}-{$period->month} unlocked" . ($reason ? ": {$reason}" : ''),
-            ]);
+                'user_id' => Auth::id(),
+                'created_at' => now(), // Schema only has created_at, not updated_at
+            ];
+            // Filter to only existing columns (schema does NOT have branch_id/description/event/updated_at)
+            $auditData = $this->filterByExistingColumns('audit_logs', $auditData);
+            AuditLog::create($auditData);
 
             return $period->fresh();
         });
+    }
+
+    /**
+     * Filter array to only include columns that exist in the table schema
+     *
+     * @param string $table
+     * @param array $data
+     * @return array
+     */
+    private function filterByExistingColumns(string $table, array $data): array
+    {
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (Schema::hasColumn($table, $key)) {
+                $filtered[$key] = $value;
+            }
+        }
+        return $filtered;
     }
 }

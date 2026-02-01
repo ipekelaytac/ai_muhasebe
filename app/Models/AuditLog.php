@@ -9,18 +9,24 @@ class AuditLog extends Model
 {
     use HasFactory;
 
+    // Schema only has created_at, not updated_at
+    public $timestamps = true;
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null; // Schema does NOT have updated_at
+
     protected $fillable = [
         'company_id',
-        'branch_id',
+        // Schema does NOT have branch_id column
         'auditable_type',
         'auditable_id',
-        'user_id',
-        'event',
+        'action', // Schema uses 'action' enum, not 'event'
         'old_values',
         'new_values',
-        'description',
+        'user_id',
+        'user_name', // Schema has user_name
         'ip_address',
         'user_agent',
+        // Schema does NOT have description column
     ];
 
     protected $casts = [

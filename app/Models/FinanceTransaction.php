@@ -9,6 +9,33 @@ class FinanceTransaction extends Model
 {
     use HasFactory;
 
+    /**
+     * Boot the model - prevent writes to deprecated accounting system
+     */
+    protected static function booted(): void
+    {
+        static::creating(function () {
+            throw new \Exception(
+                'FinanceTransaction is deprecated. Use App\Domain\Accounting\Models\Document ' .
+                'and App\Domain\Accounting\Services\DocumentService instead.'
+            );
+        });
+
+        static::updating(function () {
+            throw new \Exception(
+                'FinanceTransaction is deprecated. Use App\Domain\Accounting\Models\Document ' .
+                'and App\Domain\Accounting\Services\DocumentService instead.'
+            );
+        });
+
+        static::deleting(function () {
+            throw new \Exception(
+                'FinanceTransaction is deprecated. Use cancellation/reversal in ' .
+                'App\Domain\Accounting\Services\DocumentService instead.'
+            );
+        });
+    }
+
     protected $fillable = [
         'company_id',
         'branch_id',

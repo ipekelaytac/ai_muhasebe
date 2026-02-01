@@ -12,7 +12,6 @@ class AccountingPeriod extends Model
 
     protected $fillable = [
         'company_id',
-        'branch_id',
         'year',
         'month',
         'start_date',
@@ -35,10 +34,7 @@ class AccountingPeriod extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function branch()
-    {
-        return $this->belongsTo(Branch::class);
-    }
+    // Note: AccountingPeriod is company-level only, no branch relationship
 
     public function lockedBy()
     {
@@ -61,10 +57,7 @@ class AccountingPeriod extends Model
         return $query->where('company_id', $companyId);
     }
 
-    public function scopeForBranch($query, $branchId)
-    {
-        return $query->where('branch_id', $branchId);
-    }
+    // Note: AccountingPeriod is company-level only, no branch scope
 
     public function scopeOpen($query)
     {
@@ -99,8 +92,8 @@ class AccountingPeriod extends Model
         return $date->gte($this->start_date) && $date->lte($this->end_date);
     }
 
-    // Static factory
-    public static function findOrCreateForDate($companyId, $branchId, $date)
+    // Static factory - periods are company-level only (no branch_id)
+    public static function findOrCreateForDate($companyId, $date)
     {
         $date = Carbon::parse($date);
         $year = $date->year;
@@ -109,7 +102,6 @@ class AccountingPeriod extends Model
         return static::firstOrCreate(
             [
                 'company_id' => $companyId,
-                'branch_id' => $branchId,
                 'year' => $year,
                 'month' => $month,
             ],

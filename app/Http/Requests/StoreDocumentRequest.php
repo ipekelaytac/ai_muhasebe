@@ -25,7 +25,7 @@ class StoreDocumentRequest extends FormRequest
             'category_id' => 'nullable|exists:finance_categories,id',
             'description' => 'nullable|string|max:1000',
             'document_number' => 'nullable|string|max:100',
-            'metadata' => 'nullable|array',
+            // Schema does NOT have metadata column - validation allows but won't persist
             'lines' => 'nullable|array',
             'lines.*.category_id' => 'nullable|exists:finance_categories,id',
             'lines.*.description' => 'nullable|string|max:500',
