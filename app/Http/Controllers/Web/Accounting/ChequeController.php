@@ -45,7 +45,12 @@ class ChequeController extends Controller
         }
         
         $cheques = $query->with('party')->orderBy('due_date')->orderBy('created_at', 'desc')->paginate(20);
-        $parties = Party::where('company_id', $user->company_id)->active()->orderBy('name')->get();
+        // Get parties including employee parties
+        $parties = Party::where('company_id', $user->company_id)
+            ->active()
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
         
         return view('accounting.cheques.index', compact('cheques', 'parties'));
     }
@@ -62,7 +67,12 @@ class ChequeController extends Controller
             $branches = Branch::where('id', $user->branch_id)->get();
         }
         
-        $parties = Party::where('company_id', $user->company_id)->active()->orderBy('name')->get();
+        // Get parties including employee parties
+        $parties = Party::where('company_id', $user->company_id)
+            ->active()
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
         $bankAccounts = \App\Domain\Accounting\Models\BankAccount::where('company_id', $user->company_id)->active()->get();
         
         return view('accounting.cheques.create', compact('branches', 'parties', 'bankAccounts'));

@@ -132,7 +132,7 @@
     </div>
     @if($cheques->hasPages())
         <div class="card-footer bg-white">
-            {{ $cheques->links() }}
+            {{ $cheques->appends(request()->query())->links('vendor.pagination.bootstrap-5') }}
         </div>
     @endif
 </div>

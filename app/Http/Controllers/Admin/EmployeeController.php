@@ -63,7 +63,7 @@ class EmployeeController extends Controller
             return back()->withErrors(['branch_id' => 'Yetkisiz işlem.']);
         }
 
-        Employee::create([
+        $employee = Employee::create([
             'company_id' => $user->company_id,
             'branch_id' => $request->branch_id,
             'full_name' => $request->full_name,
@@ -72,6 +72,17 @@ class EmployeeController extends Controller
             'end_date' => $request->end_date,
             'status' => $request->has('status'),
         ]);
+
+        // Ensure Party is created (EmployeeObserver should handle this automatically)
+        // Refresh to get party_id if Observer created it
+        $employee->refresh();
+        
+        if (!$employee->party_id) {
+            // Fallback: manually trigger Observer if it didn't fire
+            $observer = new \App\Observers\EmployeeObserver();
+            $observer->created($employee);
+            $employee->refresh();
+        }
 
         return redirect()->route('admin.employees.index')
             ->with('success', 'Çalışan başarıyla oluşturuldu.');

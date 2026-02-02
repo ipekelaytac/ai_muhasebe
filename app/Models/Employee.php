@@ -12,6 +12,7 @@ class Employee extends Model
     protected $fillable = [
         'company_id',
         'branch_id',
+        'party_id',
         'full_name',
         'phone',
         'start_date',
@@ -33,6 +34,14 @@ class Employee extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Get the party record for this employee (1-1 relationship)
+     */
+    public function party()
+    {
+        return $this->belongsTo(\App\Domain\Accounting\Models\Party::class);
     }
 
     public function contracts()
@@ -57,9 +66,14 @@ class Employee extends Model
         return $this->hasMany(PayrollItem::class);
     }
 
+    /**
+     * @deprecated Legacy Advance model removed. Use accounting documents with type=advance_given instead.
+     * Access via: $employee->party->documents()->where('type', 'advance_given')
+     */
     public function advances()
     {
-        return $this->hasMany(Advance::class);
+        // Return empty relationship to prevent errors
+        return $this->hasMany(PayrollItem::class)->whereRaw('1 = 0');
     }
 
     public function scopeActive($query)

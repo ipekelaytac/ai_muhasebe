@@ -23,55 +23,99 @@ class DocumentService
      */
     public function createDocument(array $data): Document
     {
-        return DB::transaction(function () use ($data) {
-            // Validate period is open
-            $this->periodService->validatePeriodOpen(
-                $data['company_id'],
-                $data['document_date']
-            );
-            
-            // Auto-determine direction if not provided
-            if (empty($data['direction'])) {
-                $data['direction'] = DocumentType::getDirection($data['type']);
-            }
-            
-            // Generate document number if not provided
-            if (empty($data['document_number'])) {
-                $data['document_number'] = Document::generateNumber(
-                    $data['company_id'],
-                    $data['branch_id'] ?? null,
-                    $data['type']
-                );
-            }
-            
-            // Set default status
-            if (empty($data['status'])) {
-                $data['status'] = DocumentStatus::PENDING;
-            }
-            
-            // Extract lines if provided
-            $lines = $data['lines'] ?? [];
-            unset($data['lines']);
-            
-            // Create document
-            $document = Document::create($data);
-            
-            // Create lines if provided
-            if (!empty($lines)) {
-                foreach ($lines as $i => $lineData) {
-                    $lineData['document_id'] = $document->id;
-                    $lineData['line_number'] = $i + 1;
+        $maxRetries = 10;
+        $attempt = 0;
+        
+        while ($attempt < $maxRetries) {
+            try {
+                return DB::transaction(function () use ($data) {
+                    // Validate period is open
+                    $this->periodService->validatePeriodOpen(
+                        $data['company_id'],
+                        $data['document_date']
+                    );
                     
-                    $line = new DocumentLine($lineData);
-                    $line->calculateTotals();
-                    $line->save();
+                    // Auto-determine direction if not provided
+                    if (empty($data['direction'])) {
+                        $data['direction'] = DocumentType::getDirection($data['type']);
+                    }
+                    
+                    // Generate document number if not provided (required)
+                    if (empty($data['document_number'])) {
+                        $data['document_number'] = Document::generateNumber(
+                            $data['company_id'],
+                            $data['branch_id'] ?? null,
+                            $data['type']
+                        );
+                    }
+                    
+                    // Set default status
+                    if (empty($data['status'])) {
+                        $data['status'] = DocumentStatus::PENDING;
+                    }
+                    
+                    // Extract lines if provided
+                    $lines = $data['lines'] ?? [];
+                    unset($data['lines']);
+                    
+                    // Create document
+                    $document = Document::create($data);
+                    
+                    // Create lines if provided
+                    if (!empty($lines)) {
+                        foreach ($lines as $i => $lineData) {
+                            $lineData['document_id'] = $document->id;
+                            $lineData['line_number'] = $i + 1;
+                            
+                            $line = new DocumentLine($lineData);
+                            $line->calculateTotals();
+                            $line->save();
+                        }
+                    }
+                    
+                    AuditLog::log($document, 'create', null, $document->toArray());
+                    
+                    return $document->fresh(['party', 'category', 'lines']);
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Check if it's a duplicate entry error for document_number
+                if ($e->getCode() == 23000 && (str_contains($e->getMessage(), 'unique_document_number') || str_contains($e->getMessage(), 'Duplicate entry'))) {
+                    $attempt++;
+                    
+                    \Log::warning("Document number duplicate detected (attempt {$attempt}/{$maxRetries}), regenerating...", [
+                        'company_id' => $data['company_id'] ?? null,
+                        'branch_id' => $data['branch_id'] ?? null,
+                        'type' => $data['type'] ?? null,
+                        'document_number' => $data['document_number'] ?? null,
+                    ]);
+                    
+                    if ($attempt >= $maxRetries) {
+                        \Log::error("Document creation failed after {$maxRetries} attempts due to duplicate document numbers", [
+                            'company_id' => $data['company_id'] ?? null,
+                            'type' => $data['type'] ?? null,
+                        ]);
+                        
+                        throw new \Exception(
+                            "Belge numarası çakışması nedeniyle belge oluşturulamadı. " .
+                            "Lütfen sayfayı yenileyip tekrar deneyin."
+                        );
+                    }
+                    
+                    // Clear document_number to regenerate
+                    unset($data['document_number']);
+                    
+                    // Small delay before retry to avoid immediate collision
+                    usleep(100000 * $attempt); // 100ms * attempt number
+                    
+                    continue; // Retry the loop
                 }
+                
+                // Re-throw if it's not a duplicate entry error
+                throw $e;
             }
-            
-            AuditLog::log($document, 'create', null, $document->toArray());
-            
-            return $document->fresh(['party', 'category', 'lines']);
-        });
+        }
+        
+        throw new \Exception("Belge oluşturulamadı. Maksimum deneme sayısına ulaşıldı.");
     }
     
     /**

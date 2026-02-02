@@ -14,128 +14,221 @@
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Net Maaş</h6>
-                <p class="card-text fs-4 fw-bold text-primary mb-0">{{ number_format($item->base_net_salary, 2) }} ₺</p>
+{{-- Compact Summary Cards --}}
+<div class="row g-3 mb-4">
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Net Maaş</h6>
+                <p class="card-text fs-5 fw-bold text-primary mb-0">{{ number_format($item->base_net_salary, 2) }} ₺</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Yemek Yardımı</h6>
-                <p class="card-text fs-4 fw-bold text-info mb-0">{{ number_format($item->meal_allowance, 2) }} ₺</p>
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Yemek</h6>
+                <p class="card-text fs-5 fw-bold text-info mb-0">{{ number_format($item->meal_allowance, 2) }} ₺</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Mesai Ücreti</h6>
-                <p class="card-text fs-4 fw-bold text-success mb-0">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</p>
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Mesai</h6>
+                <p class="card-text fs-5 fw-bold text-success mb-0">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Net Ödenecek</h6>
-                <p class="card-text fs-4 fw-bold text-primary mb-0">{{ number_format($item->net_payable, 2) }} ₺</p>
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Kesintiler</h6>
+                <p class="card-text fs-5 fw-bold text-warning mb-0">{{ number_format($item->deduction_total, 2) }} ₺</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Toplam Ödenen</h6>
-                <p class="card-text fs-4 fw-bold text-success mb-0">{{ number_format($item->total_paid, 2) }} ₺</p>
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Avans</h6>
+                <p class="card-text fs-5 fw-bold text-secondary mb-0">{{ number_format($item->advances_deducted_total, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle mb-1 small opacity-75">Net Ödenecek</h6>
+                <p class="card-text fs-5 fw-bold mb-0">{{ number_format($item->net_payable, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle mb-1 small opacity-75">Toplam Ödenen</h6>
+                <p class="card-text fs-5 fw-bold mb-0">{{ number_format($item->total_paid, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm bg-danger text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle mb-1 small opacity-75">Kalan</h6>
+                <p class="card-text fs-5 fw-bold mb-0">{{ number_format($item->total_remaining, 2) }} ₺</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-4 col-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 text-center">
+                <h6 class="card-subtitle text-muted mb-1 small">Borç Ödemeleri</h6>
+                <p class="card-text fs-5 fw-bold text-danger mb-0">{{ number_format($item->debt_payments_total ?? 0, 2) }} ₺</p>
             </div>
         </div>
     </div>
 </div>
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Kalan</h6>
-                <p class="card-text fs-3 fw-bold text-danger mb-0">{{ number_format($item->total_remaining, 2) }} ₺</p>
-            </div>
+
+{{-- Installment Details --}}
+{{-- Warning if documents are missing --}}
+@if($item->installments->where('accounting_document_id', null)->count() > 0)
+<div class="alert alert-warning mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Uyarı:</strong> Bu bordro kalemi için muhasebe belgeleri oluşturulmamış. 
+            Ödeme yapabilmek için önce belgeleri oluşturun.
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Kesintiler</h6>
-                <p class="card-text fs-3 fw-bold text-warning mb-0">{{ number_format($item->deduction_total, 2) }} ₺</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Avans Mahsupları</h6>
-                <p class="card-text fs-3 fw-bold text-secondary mb-0">{{ number_format($item->advances_deducted_total, 2) }} ₺</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="card-subtitle text-muted mb-2">Borç Ödemeleri</h6>
-                <p class="card-text fs-3 fw-bold text-danger mb-0">{{ number_format($item->debt_payments_total ?? 0, 2) }} ₺</p>
-            </div>
-        </div>
+        <form method="POST" action="{{ route('admin.payroll.create-documents', $item) }}" class="d-inline">
+            @csrf
+            <button type="submit" class="btn btn-warning btn-sm">
+                <i class="bi bi-file-earmark-plus me-1"></i>Muhasebe Belgelerini Oluştur
+            </button>
+        </form>
     </div>
 </div>
+@endif
 
 <div class="row g-4 mb-4">
     @forelse($item->installments as $installment)
+        @php
+            $payments = $installmentPayments[$installment->installment_no] ?? collect([]);
+            $hasDocument = $installment->accounting_document_id && $installment->document;
+            $isLocked = $hasDocument && $installment->document->isInLockedPeriod();
+        @endphp
         <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 {{ $isLocked ? 'border-warning' : '' }}">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check me-2"></i>{{ $installment->title ?? 'Taksit ' . $installment->installment_no }}
+                    </h5>
+                    @if($isLocked)
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-lock me-1"></i>Kilitli Dönem
+                        </span>
+                    @endif
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title mb-3">{{ $installment->title ?? 'Taksit ' . $installment->installment_no }}</h5>
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Vade:</dt>
-                        <dd class="col-sm-8">{{ $installment->due_date->format('d.m.Y') }}</dd>
+                    <dl class="row mb-3">
+                        <dt class="col-sm-5">Vade Tarihi:</dt>
+                        <dd class="col-sm-7">{{ $installment->due_date->format('d.m.Y') }}</dd>
 
-                        <dt class="col-sm-4">Planlanan:</dt>
-                        <dd class="col-sm-8">{{ number_format($installment->planned_amount, 2) }} ₺</dd>
+                        <dt class="col-sm-5">Planlanan Tutar:</dt>
+                        <dd class="col-sm-7 fw-bold">{{ number_format($installment->planned_amount, 2) }} ₺</dd>
 
-                        <dt class="col-sm-4">Ödenen:</dt>
-                        <dd class="col-sm-8">{{ number_format($installment->paid_amount, 2) }} ₺</dd>
+                        <dt class="col-sm-5">Ödenen Tutar:</dt>
+                        <dd class="col-sm-7 fw-bold text-success">{{ number_format($installment->paid_amount, 2) }} ₺</dd>
 
-                        <dt class="col-sm-4">Kalan:</dt>
-                        <dd class="col-sm-8">
-                            <span class="fw-bold {{ $installment->remaining_amount < 0 ? 'text-danger' : ($installment->remaining_amount > 0 ? 'text-warning' : 'text-success') }}">
+                        <dt class="col-sm-5">Kalan Tutar:</dt>
+                        <dd class="col-sm-7">
+                            <span class="fw-bold fs-5 {{ $installment->remaining_amount < 0 ? 'text-danger' : ($installment->remaining_amount > 0 ? 'text-warning' : 'text-success') }}">
                                 {{ number_format($installment->remaining_amount, 2) }} ₺
                             </span>
                         </dd>
+                        
+                        @if($hasDocument)
+                            <dt class="col-sm-5">Muhasebe Belge No:</dt>
+                            <dd class="col-sm-7">
+                                <a href="{{ route('accounting.documents.show', $installment->document->id) }}" class="text-decoration-none" target="_blank">
+                                    {{ $installment->document->document_number }}
+                                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                            </dd>
+                        @else
+                            <dt class="col-sm-5">Durum:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-danger">Muhasebe belgesi oluşturulmamış</span>
+                            </dd>
+                        @endif
                     </dl>
-                    @if($installment->deductions->count() > 0 || $installment->advanceSettlements->count() > 0)
-                        <hr class="my-2">
-                        @if($installment->deductions->count() > 0)
+
+                    {{-- Payment Button --}}
+                    @if($hasDocument && !$isLocked)
+                        <div class="mb-3">
+                            <a href="{{ route('accounting.payments.create') }}?party_id={{ $item->employee->party_id }}&document_id={{ $installment->accounting_document_id }}&suggested_amount={{ $installment->remaining_amount }}&context=payroll&payroll_item_id={{ $item->id }}&installment_no={{ $installment->installment_no }}" 
+                               class="btn btn-primary btn-sm w-100">
+                                <i class="bi bi-cash-coin me-2"></i>Muhasebede Ödeme Yap ({{ $installment->title }})
+                            </a>
+                        </div>
+                    @elseif($isLocked)
+                        <div class="alert alert-warning mb-0 py-2">
+                            <small><i class="bi bi-lock me-1"></i>Kilitli dönem - ödeme yapılamaz. Ters kayıt kullanın.</small>
+                        </div>
+                    @endif
+
+                    {{-- Payments List --}}
+                    @if($payments->count() > 0)
+                        <hr class="my-3">
+                        <h6 class="mb-2"><i class="bi bi-list-ul me-1"></i>Yapılan Ödemeler</h6>
+                        <div class="list-group list-group-flush">
+                            @foreach($payments as $payment)
+                                @php
+                                    $allocation = $payment->allocations->first();
+                                    $allocatedAmount = $payment->allocations->sum('amount');
+                                @endphp
+                                <div class="list-group-item px-0 py-2 border-0 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-medium">
+                                                <a href="{{ route('accounting.payments.show', $payment->id) }}" class="text-decoration-none" target="_blank">
+                                                    {{ $payment->payment_number }}
+                                                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                                </a>
+                                            </div>
+                                            <small class="text-muted">{{ $payment->payment_date->format('d.m.Y') }}</small>
+                                            <div>
+                                                @if($payment->type == 'bank_out' || $payment->type == 'bank_in')
+                                                    <span class="badge bg-primary">Banka</span>
+                                                @elseif($payment->type == 'cash_out' || $payment->type == 'cash_in')
+                                                    <span class="badge bg-success">Nakit</span>
+                                                @else
+                                                    <span class="badge bg-secondary">{{ \App\Domain\Accounting\Enums\PaymentType::getLabel($payment->type) }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-success">{{ number_format($allocatedAmount, 2) }} ₺</div>
+                                            <small class="text-muted">Toplam: {{ number_format($payment->amount, 2) }} ₺</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    {{-- Deductions for this installment --}}
+                    @if($installment->deductions->count() > 0)
+                        <hr class="my-3">
+                        <h6 class="mb-2"><i class="bi bi-dash-circle me-1"></i>Kesintiler</h6>
+                        @foreach($installment->deductions as $deduction)
                             <div class="mb-2">
-                                <small class="text-muted d-block mb-1">Kesintiler:</small>
-                                @foreach($installment->deductions as $deduction)
-                                    <span class="badge bg-warning text-dark me-1">
-                                        {{ $deduction->deductionType->name }}: {{ number_format($deduction->amount, 2) }} ₺
-                                    </span>
-                                @endforeach
+                                <span class="badge bg-warning text-dark me-1">
+                                    {{ $deduction->deductionType->name }}
+                                </span>
+                                <span class="fw-medium">{{ number_format($deduction->amount, 2) }} ₺</span>
                             </div>
-                        @endif
-                        @if($installment->advanceSettlements->count() > 0)
-                            <div>
-                                <small class="text-muted d-block mb-1">Avans Mahsupları:</small>
-                                @foreach($installment->advanceSettlements as $settlement)
-                                    <span class="badge bg-info text-dark me-1">
-                                        {{ $settlement->advance->advance_date->format('d.m.Y') }}: {{ number_format($settlement->settled_amount, 2) }} ₺
-                                    </span>
-                                @endforeach
-                            </div>
-                        @endif
+                        @endforeach
                     @endif
                 </div>
             </div>
@@ -152,48 +245,171 @@
     @endforelse
 </div>
 
-@if(isset($overtimes) && $overtimes->count() > 0)
+@if((isset($overtimeDocuments) && $overtimeDocuments->count() > 0) || (isset($legacyOvertimes) && $legacyOvertimes->count() > 0))
 <div class="mb-4">
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Mesailer</h5>
+            @if($item->employee->party_id)
+                <a href="{{ route('accounting.overtime.create', ['party_id' => $item->employee->party_id]) }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Mesai Ekle
+                </a>
+            @endif
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tarih</th>
-                            <th>Başlangıç</th>
-                            <th>Bitiş</th>
-                            <th>Saat</th>
-                            <th>Saatlik Ücret</th>
-                            <th class="text-end">Tutar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($overtimes as $overtime)
+            @if(isset($overtimeDocuments) && $overtimeDocuments->count() > 0)
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
                             <tr>
-                                <td>{{ $overtime->overtime_date->format('d.m.Y') }}</td>
-                                <td>{{ date('H:i', strtotime($overtime->start_time)) }}</td>
-                                <td>{{ date('H:i', strtotime($overtime->end_time)) }}</td>
-                                <td class="fw-bold">{{ number_format($overtime->hours, 2) }} saat</td>
-                                <td>{{ number_format($overtime->rate, 2) }} ₺</td>
-                                <td class="text-end fw-bold text-success">{{ number_format($overtime->amount, 2) }} ₺</td>
+                                <th>Belge No</th>
+                                <th>Belge Tarihi</th>
+                                <th>Mesai Tarihi</th>
+                                <th>Açıklama</th>
+                                <th class="text-end">Tutar</th>
+                                <th class="text-end">Ödenen</th>
+                                <th class="text-end">Kalan</th>
+                                <th class="text-center">Durum</th>
+                                <th class="text-center">İşlemler</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot class="table-light">
-                        <tr>
-                            <th colspan="5" class="text-end">Toplam Mesai Ücreti:</th>
-                            <th class="text-end text-success">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            @foreach($overtimeDocuments as $overtimeDoc)
+                                @php
+                                    $overtimeDate = null;
+                                    $hours = null;
+                                    $rate = null;
+                                    if ($overtimeDoc->notes) {
+                                        $notes = explode("\n", $overtimeDoc->notes);
+                                        foreach ($notes as $note) {
+                                            if (strpos($note, 'Mesai Tarihi:') !== false) {
+                                                $overtimeDate = trim(str_replace('Mesai Tarihi:', '', $note));
+                                            }
+                                            if (strpos($note, 'Saat:') !== false) {
+                                                $hours = trim(str_replace('Saat:', '', $note));
+                                            }
+                                            if (strpos($note, 'Saatlik Ücret:') !== false) {
+                                                $rate = trim(str_replace('Saatlik Ücret:', '', str_replace('₺', '', $note)));
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('accounting.overtime.show', $overtimeDoc) }}" class="text-decoration-none">
+                                            <strong>{{ $overtimeDoc->document_number }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>{{ $overtimeDoc->document_date->format('d.m.Y') }}</td>
+                                    <td>{{ $overtimeDate ? \Carbon\Carbon::parse($overtimeDate)->format('d.m.Y') : '-' }}</td>
+                                    <td>
+                                        {{ $overtimeDoc->description }}
+                                        @if($hours)
+                                            <br><small class="text-muted">{{ $hours }} saat</small>
+                                        @endif
+                                    </td>
+                                    <td class="text-end fw-bold">{{ number_format($overtimeDoc->total_amount, 2) }} ₺</td>
+                                    <td class="text-end text-success">{{ number_format($overtimeDoc->paid_amount, 2) }} ₺</td>
+                                    <td class="text-end {{ $overtimeDoc->unpaid_amount > 0 ? 'text-warning' : 'text-success' }}">
+                                        {{ number_format($overtimeDoc->unpaid_amount, 2) }} ₺
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ $overtimeDoc->status == 'settled' ? 'success' : ($overtimeDoc->status == 'partial' ? 'warning' : 'secondary') }}">
+                                            {{ \App\Domain\Accounting\Enums\DocumentStatus::getLabel($overtimeDoc->status) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ route('accounting.overtime.show', $overtimeDoc) }}" class="btn btn-outline-primary" title="Detay">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            @if($overtimeDoc->unpaid_amount > 0)
+                                                <button type="button" 
+                                                        class="btn btn-success" 
+                                                        title="Ödeme Yap"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#overtimePaymentModal"
+                                                        data-overtime-id="{{ $overtimeDoc->id }}"
+                                                        data-overtime-number="{{ $overtimeDoc->document_number }}"
+                                                        data-overtime-amount="{{ $overtimeDoc->unpaid_amount }}"
+                                                        data-party-id="{{ $item->employee->party_id }}">
+                                                    <i class="bi bi-cash-coin"></i>
+                                                </button>
+                                            @else
+                                                <button class="btn btn-outline-secondary" disabled title="Ödendi">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4" class="text-end">Toplam Mesai Ücreti:</th>
+                                <th class="text-end text-success">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</th>
+                                <th colspan="4"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            @elseif(isset($legacyOvertimes) && $legacyOvertimes->count() > 0)
+                {{-- Legacy overtime records (deprecated) --}}
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Bilgi:</strong> Bu mesailer eski sistemden geliyor. Yeni mesai girişi için muhasebe sistemini kullanın.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Başlangıç</th>
+                                <th>Bitiş</th>
+                                <th>Saat</th>
+                                <th>Saatlik Ücret</th>
+                                <th class="text-end">Tutar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($legacyOvertimes as $overtime)
+                                <tr>
+                                    <td>{{ $overtime->overtime_date->format('d.m.Y') }}</td>
+                                    <td>{{ date('H:i', strtotime($overtime->start_time)) }}</td>
+                                    <td>{{ date('H:i', strtotime($overtime->end_time)) }}</td>
+                                    <td class="fw-bold">{{ number_format($overtime->hours, 2) }} saat</td>
+                                    <td>{{ number_format($overtime->rate, 2) }} ₺</td>
+                                    <td class="text-end fw-bold text-success">{{ number_format($overtime->amount, 2) }} ₺</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="5" class="text-end">Toplam Mesai Ücreti:</th>
+                                <th class="text-end text-success">{{ number_format($item->overtime_total ?? 0, 2) }} ₺</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            @endif
         </div>
     </div>
 </div>
+@else
+    @if($item->employee->party_id)
+        <div class="mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-clock-history display-6 text-muted mb-3"></i>
+                    <p class="text-muted mb-3">Bu dönem için mesai kaydı bulunmuyor.</p>
+                    <a href="{{ route('accounting.overtime.create', ['party_id' => $item->employee->party_id]) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Mesai Ekle
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
 @endif
 
 <div class="mb-4">
@@ -263,69 +479,6 @@
 <div class="mb-4">
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Avans Mahsuplaşmaları</h5>
-            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#advanceModal">
-                <i class="bi bi-plus-circle me-2"></i>Avans Mahsup Et
-            </button>
-        </div>
-        <div class="card-body">
-            @forelse($item->advanceSettlements as $settlement)
-                <div class="row g-3 align-items-center border-bottom pb-3 mb-3">
-                    <div class="col-md-2">
-                        <div class="mb-1">
-                            <small class="text-muted d-block">Avans Tarihi:</small>
-                            <div class="fw-bold">{{ $settlement->advance->advance_date->format('d.m.Y') }}</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-1">
-                            <small class="text-muted d-block">Taksit Seçimi:</small>
-                            @if($settlement->payroll_installment_id && $settlement->installment)
-                                <div>
-                                    <span class="badge bg-info text-dark">
-                                        {{ $settlement->installment->installment_no }}. Taksit
-                                    </span>
-                                    @if($settlement->installment->title)
-                                        <br><small class="text-muted fw-bold">{{ $settlement->installment->title }}</small>
-                                    @endif
-                                    <br><small class="text-muted">({{ $settlement->installment->due_date->format('d.m.Y') }})</small>
-                                </div>
-                            @else
-                                <span class="badge bg-secondary">Genel (Her İki Taksitten)</span>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="mb-1">
-                            <small class="text-muted d-block">Mahsup Tarihi:</small>
-                            <div>{{ $settlement->settled_date->format('d.m.Y') }}</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 text-end">
-                        <div class="mb-1">
-                            <small class="text-muted d-block">Tutar:</small>
-                            <span class="fw-bold fs-5 text-info">{{ number_format($settlement->settled_amount, 2) }} ₺</span>
-                        </div>
-                    </div>
-                    <div class="col-md-2 text-end">
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAdvanceSettlementModal{{ $settlement->id }}">
-                            <i class="bi bi-trash"></i> Sil
-                        </button>
-                    </div>
-                </div>
-            @empty
-                <div class="text-center py-5">
-                    <i class="bi bi-cash-stack display-4 text-muted d-block mb-3"></i>
-                    <p class="text-muted mb-0">Avans mahsuplaşması bulunmuyor</p>
-                </div>
-            @endforelse
-        </div>
-    </div>
-</div>
-
-<div class="mb-4">
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Borç Ödemeleri</h5>
             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#debtPaymentModal">
                 <i class="bi bi-plus-circle me-2"></i>Borç Ödemesi Ekle
@@ -378,178 +531,42 @@
     </div>
 </div>
 
+{{-- Quick Actions --}}
+@if($item->employee->party_id)
 <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Ödemeler</h5>
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal">
-            <i class="bi bi-plus-circle me-2"></i>Yeni Ödeme Ekle
-        </button>
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Hızlı İşlemler</h5>
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tarih</th>
-                            <th>Tutar</th>
-                            <th>Yöntem</th>
-                            <th>Taksit Seçimi</th>
-                            <th>Taksitler</th>
-                            <th class="text-end">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($item->payments as $payment)
-                            @php
-                                $allocations = $payment->allocations ?? collect();
-                                $installmentNos = $allocations->map(function($allocation) {
-                                    return ($allocation->payroll_installment_id && $allocation->installment) ? $allocation->installment->installment_no : null;
-                                })->filter()->unique()->sort()->values();
-                                
-                                $allocationType = '';
-                                $allocationTitle = '';
-                                if ($allocations->isEmpty() || $installmentNos->count() == 0) {
-                                    $allocationType = 'Otomatik';
-                                } elseif ($installmentNos->count() == 1) {
-                                    $no = $installmentNos->first();
-                                    $allocation = $allocations->first(function($a) use ($no) {
-                                        return $a->payroll_installment_id && $a->installment && $a->installment->installment_no == $no;
-                                    });
-                                    if ($allocation && $allocation->installment) {
-                                        $installment = $allocation->installment;
-                                        $allocationType = $no . '. Taksit';
-                                        $allocationTitle = $installment->title ? $installment->title : ($no == 1 ? '5\'i' : '20\'si');
-                                    } else {
-                                        $allocationType = $no . '. Taksit';
-                                    }
-                                } else {
-                                    $allocationType = 'Her İkisine Böl';
-                                }
-                            @endphp
-                            <tr>
-                                <td>{{ $payment->payment_date->format('d.m.Y') }}</td>
-                                <td>{{ number_format($payment->amount, 2) }} ₺</td>
-                                <td>
-                                    @if($payment->method == 'bank')
-                                        <span class="badge bg-primary">Banka</span>
-                                    @elseif($payment->method == 'cash')
-                                        <span class="badge bg-success">Nakit</span>
-                                    @else
-                                        <span class="badge bg-secondary">Diğer</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($allocationType == 'Her İkisine Böl')
-                                        <span class="badge bg-primary">{{ $allocationType }}</span>
-                                    @elseif($allocationType == 'Otomatik')
-                                        <span class="badge bg-secondary">{{ $allocationType }}</span>
-                                    @else
-                                        <div>
-                                            <span class="badge bg-warning text-dark">{{ $allocationType }}</span>
-                                            @if($allocationTitle)
-                                                <br><small class="text-muted fw-bold">{{ $allocationTitle }}</small>
-                                            @endif
-                                        </div>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($payment->allocations->count() > 0)
-                                        @foreach($payment->allocations as $allocation)
-                                            @if($allocation->payroll_installment_id && $allocation->installment)
-                                                <div class="mb-1">
-                                                    <span class="badge bg-info text-dark">
-                                                        {{ $allocation->installment->installment_no }}. Taksit
-                                                        @if($allocation->installment->title)
-                                                            ({{ $allocation->installment->title }})
-                                                        @else
-                                                            ({{ $allocation->installment->due_date->format('d.m.Y') }})
-                                                        @endif
-                                                    </span>
-                                                    <br>
-                                                    <small class="text-muted">{{ number_format($allocation->allocated_amount, 2) }} ₺</small>
-                                                </div>
-                                            @else
-                                                <span class="badge bg-secondary">
-                                                    Genel: {{ number_format($allocation->allocated_amount, 2) }} ₺
-                                                </span>
-                                            @endif
-                                        @endforeach
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deletePaymentModal{{ $payment->id }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Henüz ödeme yok</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{{-- Payment Modal --}}
-<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="paymentModalLabel">Yeni Ödeme Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <a href="{{ route('accounting.employees.advances.create', $item->employee->party_id) }}" class="btn btn-info w-100">
+                    <i class="bi bi-cash-coin me-2"></i>Avans Ver
+                </a>
             </div>
-            <form method="POST" action="{{ route('admin.payroll.add-payment', $item) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="payment_date" class="form-label">Tarih</label>
-                        <input type="date" name="payment_date" id="payment_date" value="{{ old('payment_date', now()->toDateString()) }}" required class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Tutar</label>
-                        <input type="number" step="0.01" name="amount" id="amount" value="{{ old('amount') }}" required class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label for="method" class="form-label">Yöntem</label>
-                        <select name="method" id="method" required class="form-select">
-                            <option value="bank">Banka</option>
-                            <option value="cash">Nakit</option>
-                            <option value="other">Diğer</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="allocation_type" class="form-label">Taksit Seçimi</label>
-                        <select name="allocation_type" id="allocation_type" required class="form-select">
-                            <option value="auto">Otomatik (En Eski Taksit)</option>
-                            <option value="installment_1">1. Taksit (5'i)</option>
-                            <option value="installment_2">2. Taksit (20'si)</option>
-                            <option value="both">Her İkisine Böl</option>
-                        </select>
-                    </div>
-                    <div id="bothAmounts" class="row g-3 mb-3 d-none">
-                        <div class="col-md-6">
-                            <label for="amount_1" class="form-label">1. Taksit</label>
-                            <input type="number" step="0.01" name="amount_1" id="amount_1" value="{{ old('amount_1') }}" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="amount_2" class="form-label">2. Taksit</label>
-                            <input type="number" step="0.01" name="amount_2" id="amount_2" value="{{ old('amount_2') }}" class="form-control">
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                    <button type="submit" class="btn btn-primary">Kaydet</button>
-                </div>
-            </form>
+            <div class="col-md-4">
+                @if($item->installments->where('accounting_document_id', '!=', null)->count() > 0 && isset($openAdvances) && $openAdvances->count() > 0)
+                    <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#advanceDeductionModal">
+                        <i class="bi bi-arrow-left-right me-2"></i>Avans Mahsup Et
+                    </button>
+                @else
+                    <button type="button" class="btn btn-warning w-100" disabled 
+                            title="@if(!isset($openAdvances) || $openAdvances->count() == 0)Açık avans bulunmuyor@else Önce muhasebe belgeleri oluşturulmalı@endif">
+                        <i class="bi bi-arrow-left-right me-2"></i>Avans Mahsup Et
+                    </button>
+                @endif
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#deductionModal">
+                    <i class="bi bi-dash-circle me-2"></i>Kesinti Gir
+                </button>
+            </div>
         </div>
     </div>
 </div>
+@endif
+
+{{-- Legacy PayrollPayment modal removed - payments now handled via Accounting system --}}
 
 {{-- Deduction Modal --}}
 <div class="modal fade" id="deductionModal" tabindex="-1" aria-labelledby="deductionModalLabel" aria-hidden="true">
@@ -605,92 +622,111 @@
     </div>
 </div>
 
-{{-- Advance Settlement Modal --}}
-<div class="modal fade" id="advanceModal" tabindex="-1" aria-labelledby="advanceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+{{-- Advance Deduction Modal --}}
+@if($item->employee->party_id)
+<div class="modal fade" id="advanceDeductionModal" tabindex="-1" aria-labelledby="advanceDeductionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="advanceModalLabel">Avans Mahsup Et</h5>
+                <h5 class="modal-title" id="advanceDeductionModalLabel">Avans Mahsup Et</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ route('admin.payroll.settle-advance', $item) }}">
+            @php
+                $firstInstallmentDoc = $item->installments->where('accounting_document_id', '!=', null)->first();
+            @endphp
+            @if($firstInstallmentDoc && isset($openAdvances) && $openAdvances->count() > 0)
+            @php
+                $baseUrl = route('accounting.payroll.deductions.store', $firstInstallmentDoc->accounting_document_id);
+                $baseUrlPattern = str_replace('/' . $firstInstallmentDoc->accounting_document_id, '/__DOC_ID__', $baseUrl);
+            @endphp
+            <form method="POST" id="advanceDeductionForm" action="{{ $baseUrl }}" data-base-url-pattern="{{ $baseUrlPattern }}">
                 @csrf
                 <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Avans mahsuplaşması, maaş taksitlerinden düşülecek ve avans belgesi kapatılacaktır.
+                    </div>
+                    
                     <div class="mb-3">
-                        <label for="advance_id" class="form-label">Avans</label>
-                        <select name="advance_id" id="advance_id" required class="form-select">
+                        <label class="form-label">Açık Avanslar</label>
+                        <div class="list-group">
+                            @foreach($openAdvances as $advanceDoc)
+                                <div class="list-group-item">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="advance_document_ids[]" value="{{ $advanceDoc->id }}" id="advance_{{ $advanceDoc->id }}">
+                                        <label class="form-check-label w-100" for="advance_{{ $advanceDoc->id }}">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <strong>{{ $advanceDoc->document_number }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">{{ $advanceDoc->document_date->format('d.m.Y') }}</small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <strong>{{ number_format($advanceDoc->unpaid_amount, 2) }} ₺</strong>
+                                                    <br>
+                                                    <small class="text-muted">Kalan</small>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="mt-2 ms-4">
+                                        <label class="form-label small">Mahsup Tutarı:</label>
+                                        <input type="number" step="0.01" name="advance_amounts[{{ $advanceDoc->id }}]" 
+                                               value="{{ $advanceDoc->unpaid_amount }}" 
+                                               max="{{ $advanceDoc->unpaid_amount }}"
+                                               class="form-control form-control-sm">
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="advance_installment_id" class="form-label">Hangi Taksitten Düşülecek?</label>
+                        <select name="installment_id" id="advance_installment_id" class="form-select" required>
                             <option value="">Seçiniz</option>
-                            @foreach($openAdvances as $advance)
-                                <option value="{{ $advance->id }}" data-remaining="{{ $advance->remaining_amount }}">
-                                    {{ $advance->advance_date->format('d.m.Y') }} - Kalan: {{ number_format($advance->remaining_amount, 2) }} ₺
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="settled_amount" class="form-label">Mahsup Tutarı</label>
-                        <input type="number" step="0.01" name="settled_amount" id="settled_amount" value="{{ old('settled_amount') }}" required class="form-control" max="">
-                    </div>
-                    <div class="mb-3">
-                        <label for="advance_installment_id" class="form-label">Taksit Seçimi</label>
-                        <select name="installment_id" id="advance_installment_id" class="form-select">
-                            <option value="">Genel (Her İki Taksitten)</option>
                             @foreach($item->installments as $installment)
-                                <option value="{{ $installment->id }}">
-                                    T{{ $installment->installment_no }}
-                                    @if($installment->title)
-                                        - {{ $installment->title }}
-                                    @endif
-                                    ({{ $installment->due_date->format('d.m.Y') }})
-                                </option>
+                                @if($installment->accounting_document_id)
+                                    <option value="{{ $installment->accounting_document_id }}" 
+                                            data-base-url="{{ route('accounting.payroll.deductions.store', ['salaryDocument' => '__DOC_ID__']) }}">
+                                        {{ $installment->title ?? 'Taksit ' . $installment->installment_no }}
+                                        (Kalan: {{ number_format($installment->remaining_amount, 2) }} ₺)
+                                    </option>
+                                @endif
                             @endforeach
                         </select>
-                        <small class="text-muted">Hangi taksitten mahsup edileceğini seçin. Boş bırakırsanız genel mahsuplaşma olur.</small>
+                        <small class="text-muted">Seçtiğiniz taksitten avans kesintisi yapılacaktır.</small>
                     </div>
-                    <div class="mb-3">
-                        <label for="settled_date" class="form-label">Tarih</label>
-                        <input type="date" name="settled_date" id="settled_date" value="{{ old('settled_date', now()->toDateString()) }}" required class="form-control">
-                    </div>
+                    
+                    <input type="hidden" name="payroll_item_id" value="{{ $item->id }}">
+                    <input type="hidden" name="party_id" value="{{ $item->employee->party_id }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                    <button type="submit" class="btn btn-info">Kaydet</button>
+                    <button type="submit" class="btn btn-warning">Mahsup Et</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-{{-- Delete Payment Modals --}}
-@foreach($item->payments as $payment)
-<div class="modal fade" id="deletePaymentModal{{ $payment->id }}" tabindex="-1" aria-labelledby="deletePaymentModalLabel{{ $payment->id }}" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deletePaymentModalLabel{{ $payment->id }}">Ödemeyi Sil</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Bu ödemeyi silmek istediğinizden emin misiniz?</p>
-                <div class="alert alert-warning">
-                    <strong>Tarih:</strong> {{ $payment->payment_date->format('d.m.Y') }}<br>
-                    <strong>Tutar:</strong> {{ number_format($payment->amount, 2) }} ₺<br>
-                    <strong>Yöntem:</strong> {{ $payment->method == 'bank' ? 'Banka' : ($payment->method == 'cash' ? 'Nakit' : 'Diğer') }}
+            @else
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @if(!isset($openAdvances) || $openAdvances->count() == 0)
+                            Bu çalışan için açık avans bulunmuyor. Önce avans vermeniz gerekiyor.
+                        @else
+                            Bu bordro kalemi için muhasebe belgesi bulunamadı. Lütfen bordroyu yeniden oluşturun.
+                        @endif
+                    </div>
                 </div>
-                <p class="text-danger mb-0"><small>Bu işlem geri alınamaz!</small></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                <form action="{{ route('admin.payroll.delete-payment', [$item, $payment]) }}" method="POST" class="d-inline">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
-                </form>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                </div>
+            @endif
         </div>
     </div>
 </div>
-@endforeach
+@endif
+
+{{-- Legacy PayrollPayment delete modals removed - payments now handled via Accounting system --}}
 
 {{-- Delete Deduction Modals --}}
 @foreach($item->deductions as $deduction)
@@ -730,44 +766,94 @@
 </div>
 @endforeach
 
-{{-- Delete Advance Settlement Modals --}}
-@foreach($item->advanceSettlements as $settlement)
-<div class="modal fade" id="deleteAdvanceSettlementModal{{ $settlement->id }}" tabindex="-1" aria-labelledby="deleteAdvanceSettlementModalLabel{{ $settlement->id }}" aria-hidden="true">
+{{-- Legacy delete advance settlement modals removed - migrated to new accounting system --}}
+
+{{-- Overtime Payment Modal --}}
+<div class="modal fade" id="overtimePaymentModal" tabindex="-1" aria-labelledby="overtimePaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteAdvanceSettlementModalLabel{{ $settlement->id }}">Avans Mahsuplaşmasını Sil</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="overtimePaymentModalLabel">
+                    <i class="bi bi-cash-coin me-2"></i>Mesai Ödemesi Yap
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p>Bu avans mahsuplaşmasını silmek istediğinizden emin misiniz?</p>
-                <div class="alert alert-warning">
-                    <strong>Avans Tarihi:</strong> {{ $settlement->advance->advance_date->format('d.m.Y') }}<br>
-                    <strong>Mahsup Tarihi:</strong> {{ $settlement->settled_date->format('d.m.Y') }}<br>
-                    <strong>Tutar:</strong> {{ number_format($settlement->settled_amount, 2) }} ₺<br>
-                    @if($settlement->payroll_installment_id && $settlement->installment)
-                        <strong>Taksit:</strong> {{ $settlement->installment->installment_no }}. Taksit
-                        @if($settlement->installment->title)
-                            ({{ $settlement->installment->title }})
-                        @endif
-                    @else
-                        <strong>Taksit:</strong> Genel (Her İki Taksitten)
-                    @endif
+            <form id="overtimePaymentForm" method="POST" action="{{ route('accounting.payments.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <input type="hidden" name="allocation_document_id" id="overtime_document_id">
+                    <input type="hidden" name="party_id" id="overtime_party_id">
+                    <input type="hidden" name="context" value="payroll">
+                    <input type="hidden" name="payroll_item_id" value="{{ $item->id }}">
+                    <input type="hidden" name="branch_id" value="{{ $item->payrollPeriod->branch_id }}">
+                    
+                    <div class="alert alert-info mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong id="overtime_document_number">-</strong>
+                                <br>
+                                <small class="text-muted">Kalan Tutar: <span id="overtime_unpaid_amount">0</span> ₺</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Ödeme Tipi <span class="text-danger">*</span></label>
+                        <select name="type" id="overtime_payment_type" class="form-select" required>
+                            <option value="">Seçiniz</option>
+                            <optgroup label="Çıkışlar">
+                                <option value="cash_out">Kasa Çıkışı</option>
+                                <option value="bank_out">Banka Çıkışı</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="overtime_cashbox_field" style="display: none;">
+                        <label class="form-label">Kasa <span class="text-danger">*</span></label>
+                        <select name="cashbox_id" id="overtime_cashbox_id" class="form-select">
+                            <option value="">Seçiniz</option>
+                            @foreach(\App\Domain\Accounting\Models\Cashbox::where('company_id', $item->payrollPeriod->company_id)->active()->get() as $cashbox)
+                                <option value="{{ $cashbox->id }}">{{ $cashbox->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="overtime_bank_field" style="display: none;">
+                        <label class="form-label">Banka <span class="text-danger">*</span></label>
+                        <select name="bank_account_id" id="overtime_bank_id" class="form-select">
+                            <option value="">Seçiniz</option>
+                            @foreach(\App\Domain\Accounting\Models\BankAccount::where('company_id', $item->payrollPeriod->company_id)->active()->get() as $bank)
+                                <option value="{{ $bank->id }}">{{ $bank->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Ödeme Tarihi <span class="text-danger">*</span></label>
+                        <input type="date" name="payment_date" class="form-control" value="{{ now()->toDateString() }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tutar <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" id="overtime_amount" class="form-control" step="0.01" min="0.01" required>
+                        <small class="text-muted">Kalan tutar otomatik dolduruldu</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Mesai ödemesi"></textarea>
+                    </div>
                 </div>
-                <p class="text-danger mb-0"><small>Bu işlem geri alınamaz!</small></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                <form action="{{ route('admin.payroll.delete-advance-settlement', [$item, $settlement]) }}" method="POST" class="d-inline">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
-                </form>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-1"></i>Ödeme Yap
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-@endforeach
 
 {{-- Debt Payment Modal --}}
 <div class="modal fade" id="debtPaymentModal" tabindex="-1" aria-labelledby="debtPaymentModalLabel" aria-hidden="true">
@@ -868,19 +954,119 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Advance modal - set max amount based on selected advance
-    var advanceSelect = document.getElementById('advance_id');
-    var settledAmountInput = document.getElementById('settled_amount');
+    // Advance deduction modal - update form action based on selected installment
+    var advanceInstallmentSelect = document.getElementById('advance_installment_id');
+    var advanceDeductionForm = document.getElementById('advanceDeductionForm');
     
-    if (advanceSelect) {
-        advanceSelect.addEventListener('change', function() {
-            var selectedOption = this.options[this.selectedIndex];
-            var remaining = selectedOption.getAttribute('data-remaining');
-            if (remaining) {
-                settledAmountInput.setAttribute('max', remaining);
-                settledAmountInput.value = remaining;
+    if (advanceInstallmentSelect && advanceDeductionForm) {
+        // Get base URL pattern with placeholder
+        var baseUrlPattern = advanceDeductionForm.getAttribute('data-base-url-pattern');
+        
+        function updateFormAction() {
+            var selectedInstallmentId = advanceInstallmentSelect.value;
+            if (selectedInstallmentId && baseUrlPattern) {
+                // Replace placeholder __DOC_ID__ with actual document ID
+                var newAction = baseUrlPattern.replace('__DOC_ID__', selectedInstallmentId);
+                advanceDeductionForm.setAttribute('action', newAction);
+                console.log('Form action updated to:', newAction, 'for installment:', selectedInstallmentId);
             }
+        }
+        
+        // Update form action when installment selection changes
+        advanceInstallmentSelect.addEventListener('change', function() {
+            updateFormAction();
+            console.log('Installment changed to:', advanceInstallmentSelect.value);
         });
+        
+        // Validate and update on form submit
+        advanceDeductionForm.addEventListener('submit', function(e) {
+            var selectedInstallmentId = advanceInstallmentSelect.value;
+            if (!selectedInstallmentId) {
+                e.preventDefault();
+                alert('Lütfen hangi taksitten düşüleceğini seçiniz.');
+                return false;
+            }
+            // CRITICAL: Update form action BEFORE any other processing
+            // This ensures the route parameter matches the selected installment
+            updateFormAction();
+            
+            // Verify the action was updated correctly
+            var currentAction = advanceDeductionForm.getAttribute('action');
+            var expectedId = selectedInstallmentId;
+            if (!currentAction.includes(expectedId)) {
+                console.error('Form action mismatch! Expected:', expectedId, 'Got:', currentAction);
+                // Force update one more time
+                var baseUrlPattern = advanceDeductionForm.getAttribute('data-base-url-pattern');
+                if (baseUrlPattern) {
+                    var correctedAction = baseUrlPattern.replace('__DOC_ID__', expectedId);
+                    advanceDeductionForm.setAttribute('action', correctedAction);
+                    console.log('Corrected form action to:', correctedAction);
+                }
+            }
+            
+            console.log('Form submitting with action:', advanceDeductionForm.getAttribute('action'), 'installment_id:', selectedInstallmentId);
+        });
+    }
+    
+    // Overtime Payment Modal
+    var overtimePaymentModal = document.getElementById('overtimePaymentModal');
+    if (overtimePaymentModal) {
+        overtimePaymentModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            var overtimeId = button.getAttribute('data-overtime-id');
+            var overtimeNumber = button.getAttribute('data-overtime-number');
+            var overtimeAmount = button.getAttribute('data-overtime-amount');
+            var partyId = button.getAttribute('data-party-id');
+            
+            // Fill form fields
+            document.getElementById('overtime_document_id').value = overtimeId;
+            document.getElementById('overtime_party_id').value = partyId;
+            document.getElementById('overtime_document_number').textContent = overtimeNumber;
+            document.getElementById('overtime_unpaid_amount').textContent = parseFloat(overtimeAmount).toFixed(2);
+            document.getElementById('overtime_amount').value = parseFloat(overtimeAmount).toFixed(2);
+            
+            // Reset form
+            document.getElementById('overtime_payment_type').value = '';
+            document.getElementById('overtime_cashbox_id').value = '';
+            document.getElementById('overtime_bank_id').value = '';
+            document.getElementById('overtime_cashbox_field').style.display = 'none';
+            document.getElementById('overtime_bank_field').style.display = 'none';
+        });
+        
+        // Payment type change handler
+        var overtimePaymentType = document.getElementById('overtime_payment_type');
+        var overtimeCashboxField = document.getElementById('overtime_cashbox_field');
+        var overtimeBankField = document.getElementById('overtime_bank_field');
+        
+        if (overtimePaymentType) {
+            overtimePaymentType.addEventListener('change', function() {
+                var type = this.value;
+                overtimeCashboxField.style.display = 'none';
+                overtimeBankField.style.display = 'none';
+                
+                if (type === 'cash_out') {
+                    overtimeCashboxField.style.display = 'block';
+                    document.getElementById('overtime_cashbox_id').required = true;
+                    document.getElementById('overtime_bank_id').required = false;
+                } else if (type === 'bank_out') {
+                    overtimeBankField.style.display = 'block';
+                    document.getElementById('overtime_bank_id').required = true;
+                    document.getElementById('overtime_cashbox_id').required = false;
+                } else {
+                    document.getElementById('overtime_cashbox_id').required = false;
+                    document.getElementById('overtime_bank_id').required = false;
+                }
+            });
+        }
+        
+        // Form submit handler - redirect back to payroll item page after success
+        var overtimePaymentForm = document.getElementById('overtimePaymentForm');
+        if (overtimePaymentForm) {
+            overtimePaymentForm.addEventListener('submit', function(e) {
+                // Form will submit normally, server will handle redirect
+                // We just need to ensure the form is valid
+            });
+        }
     }
 });
 </script>

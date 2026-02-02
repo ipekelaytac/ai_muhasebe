@@ -205,7 +205,7 @@
     </div>
     @if($payments->hasPages())
         <div class="card-footer bg-white">
-            {{ $payments->links() }}
+            {{ $payments->appends(request()->query())->links('vendor.pagination.bootstrap-5') }}
         </div>
     @endif
 </div>

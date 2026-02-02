@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployeeForm'])->name('admin.payroll.add-employee-form');
     Route::post('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployee'])->name('admin.payroll.add-employee');
     Route::get('admin/payroll/item/{item}', [PayrollController::class, 'showItem'])->name('admin.payroll.item');
+    Route::post('admin/payroll/item/{item}/create-documents', [PayrollController::class, 'createDocuments'])->name('admin.payroll.create-documents');
     Route::post('admin/payroll/item/{item}/deduction', [PayrollController::class, 'addDeduction'])->name('admin.payroll.add-deduction');
     Route::delete('admin/payroll/item/{item}/deduction/{deduction}', [PayrollController::class, 'deleteDeduction'])->name('admin.payroll.delete-deduction');
     // Legacy advance routes removed - advance tables dropped
@@ -198,6 +199,13 @@ Route::middleware('auth')->group(function () {
         // Payroll Deductions (Maaş Kesintileri)
         Route::get('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'show'])->name('payroll.deductions.show');
         Route::post('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'store'])->name('payroll.deductions.store');
+        
+        // Overtime (Mesai)
+        Route::get('overtime', [\App\Http\Controllers\Web\Accounting\OvertimeController::class, 'index'])->name('overtime.index');
+        Route::get('overtime/create', [\App\Http\Controllers\Web\Accounting\OvertimeController::class, 'create'])->name('overtime.create');
+        Route::get('overtime/contract-info', [\App\Http\Controllers\Web\Accounting\OvertimeController::class, 'getContractInfo'])->name('overtime.contract-info');
+        Route::post('overtime', [\App\Http\Controllers\Web\Accounting\OvertimeController::class, 'store'])->name('overtime.store');
+        Route::get('overtime/{document}', [\App\Http\Controllers\Web\Accounting\OvertimeController::class, 'show'])->name('overtime.show');
     });
     
     // Accounting API Routes

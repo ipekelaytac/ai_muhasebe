@@ -69,8 +69,64 @@ class PaymentController extends Controller
         $bankAccounts = \App\Domain\Accounting\Models\BankAccount::where('company_id', $user->company_id)->active()->get();
         
         $partyId = $request->get('party_id');
+        $documentId = $request->get('document_id');
+        $suggestedAmount = $request->get('suggested_amount');
         
-        return view('accounting.payments.create', compact('branches', 'parties', 'cashboxes', 'bankAccounts', 'partyId'));
+        // Get selected document if document_id is provided
+        $selectedDocument = null;
+        if ($documentId) {
+            $selectedDocument = \App\Domain\Accounting\Models\Document::where('company_id', $user->company_id)
+                ->where('id', $documentId)
+                ->first();
+            
+            // If document found, use its party_id if party_id not provided
+            if ($selectedDocument && !$partyId) {
+                $partyId = $selectedDocument->party_id;
+            }
+        }
+        
+        // Get open overtime documents for the selected party (if any)
+        $openOvertimes = collect([]);
+        if ($partyId) {
+            $openOvertimes = \App\Domain\Accounting\Models\Document::where('company_id', $user->company_id)
+                ->where('party_id', $partyId)
+                ->where('type', \App\Domain\Accounting\Enums\DocumentType::OVERTIME_DUE)
+                ->where(function($q) {
+                    $q->where('status', 'pending')
+                      ->orWhere('status', 'partial');
+                })
+                ->whereRaw('total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE document_id = documents.id AND status = "active"), 0)')
+                ->orderBy('document_date', 'desc')
+                ->get();
+        }
+        
+        // Get open documents for allocation (all types, not just overtime)
+        $openDocuments = collect([]);
+        if ($partyId) {
+            $openDocuments = \App\Domain\Accounting\Models\Document::where('company_id', $user->company_id)
+                ->where('party_id', $partyId)
+                ->where(function($q) {
+                    $q->where('status', 'pending')
+                      ->orWhere('status', 'partial');
+                })
+                ->whereRaw('total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE document_id = documents.id AND status = "active"), 0)')
+                ->orderBy('due_date', 'asc')
+                ->orderBy('document_date', 'asc')
+                ->get();
+        }
+        
+        return view('accounting.payments.create', compact(
+            'branches', 
+            'parties', 
+            'cashboxes', 
+            'bankAccounts', 
+            'partyId', 
+            'openOvertimes',
+            'openDocuments',
+            'selectedDocument',
+            'documentId',
+            'suggestedAmount'
+        ));
     }
     
     public function store(Request $request)
@@ -94,6 +150,8 @@ class PaymentController extends Controller
             'reference_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'notes' => 'nullable|string',
+            'allocation_document_id' => 'nullable|exists:documents,id',
+            'allocation_amount' => 'nullable|numeric|min:0.01',
         ]);
         
         $validated['company_id'] = $user->company_id;
@@ -105,6 +163,39 @@ class PaymentController extends Controller
         
         try {
             $payment = $this->paymentService->createPayment($validated);
+            
+            // If allocation_document_id is provided, automatically allocate payment to that document
+            if ($request->has('allocation_document_id') && $request->allocation_document_id) {
+                try {
+                    $allocationService = app(\App\Domain\Accounting\Services\AllocationService::class);
+                    $amount = min($payment->amount, $request->get('allocation_amount', $payment->amount));
+                    
+                    $allocationService->allocate($payment, [
+                        [
+                            'document_id' => $request->allocation_document_id,
+                            'amount' => $amount,
+                        ]
+                    ]);
+                    
+                    // If coming from payroll context, redirect back to payroll item page
+                    if ($request->has('context') && $request->context === 'payroll' && $request->has('payroll_item_id')) {
+                        return redirect()->route('admin.payroll.item', $request->payroll_item_id)
+                            ->with('success', 'Mesai ödemesi başarıyla kaydedildi ve belgeye dağıtıldı.');
+                    }
+                    
+                    return redirect()->route('accounting.payments.show', $payment)
+                        ->with('success', 'Ödeme başarıyla kaydedildi ve belgeye dağıtıldı.');
+                } catch (\Exception $allocationError) {
+                    // Payment created but allocation failed - still redirect but show warning
+                    \Log::warning("Payment created but allocation failed: " . $allocationError->getMessage(), [
+                        'payment_id' => $payment->id,
+                        'document_id' => $request->allocation_document_id,
+                    ]);
+                    
+                    return redirect()->route('accounting.payments.show', $payment)
+                        ->with('warning', 'Ödeme kaydedildi ancak belgeye dağıtım yapılamadı. Lütfen manuel olarak dağıtım yapın.');
+                }
+            }
             
             return redirect()->route('accounting.payments.show', $payment)
                 ->with('success', 'Ödeme başarıyla kaydedildi.');

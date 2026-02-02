@@ -60,6 +60,11 @@
             <span>Ödeme / Tahsilat</span>
         </a>
         
+        <a href="{{ route('accounting.overtime.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('accounting.overtime.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>Mesai Girişi</span>
+        </a>
+        
         <a href="{{ route('accounting.cash.index') }}" class="nav-link text-white d-flex align-items-center mb-2 rounded {{ request()->routeIs('accounting.cash.*') ? 'bg-primary' : 'hover-bg-secondary' }}" style="padding: 0.5rem;" onclick="closeSidebarOnMobile()">
             <i class="bi bi-bank me-2"></i>
             <span>Kasa & Bankalar</span>

@@ -120,8 +120,9 @@ class EmployeeAdvanceService
     
     /**
      * Get open advances for an employee that can be deducted
+     * Returns a collection of Document models
      */
-    public function suggestOpenAdvancesForEmployee(int $employeePartyId, $asOfDate = null): array
+    public function suggestOpenAdvancesForEmployee(int $employeePartyId, $asOfDate = null)
     {
         $asOfDate = $asOfDate ? \Carbon\Carbon::parse($asOfDate) : now();
         
@@ -134,18 +135,10 @@ class EmployeeAdvanceService
             ->orderBy('document_date')
             ->orderBy('document_number')
             ->get()
-            ->map(function ($doc) {
-                return [
-                    'document_id' => $doc->id,
-                    'document_number' => $doc->document_number,
-                    'document_date' => $doc->document_date->format('Y-m-d'),
-                    'total_amount' => $doc->total_amount,
-                    'unpaid_amount' => $doc->unpaid_amount,
-                    'paid_amount' => $doc->paid_amount,
-                    'description' => $doc->description,
-                ];
-            })
-            ->toArray();
+            ->filter(function ($doc) {
+                // Only return documents with unpaid amount > 0
+                return $doc->unpaid_amount > 0;
+            });
     }
     
     /**
@@ -238,6 +231,8 @@ class EmployeeAdvanceService
             }
             
             // Create internal offset payment (no cash movement)
+            // Note: For internal_offset payments, allocation total can exceed payment amount
+            // because it's a netting operation (allocates to both advance and salary documents)
             $internalPayment = $this->paymentService->createPayment([
                 'company_id' => $salaryDocument->company_id,
                 'branch_id' => $salaryDocument->branch_id,
@@ -245,9 +240,9 @@ class EmployeeAdvanceService
                 'direction' => 'internal',
                 'party_id' => $party->id,
                 'payment_date' => $salaryDocument->document_date,
-                'amount' => $totalDeductionAmount,
+                'amount' => $totalDeductionAmount, // Payment amount = deduction amount
                 'description' => "Avans kesintisi: {$salaryDocument->document_number}",
-                'notes' => 'İç mahsup - nakit hareketi yok',
+                'notes' => 'İç mahsup - nakit hareketi yok. Bu ödeme hem avans hem maaş belgesine dağıtılır (netting işlemi).',
                 'reference_type' => Document::class,
                 'reference_id' => $salaryDocument->id,
             ]);
@@ -264,6 +259,7 @@ class EmployeeAdvanceService
             }
             
             // Also allocate to salary document (reduces company owes employee)
+            // Same amount as total deduction
             $allocations[] = [
                 'document_id' => $salaryDocument->id,
                 'amount' => $totalDeductionAmount,

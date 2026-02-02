@@ -55,15 +55,23 @@
                     <label class="form-label">Cari</label>
                     <select name="party_id" id="party_id" class="form-select @error('party_id') is-invalid @enderror">
                         <option value="">Seçiniz (Opsiyonel)</option>
-                        @foreach($parties as $party)
-                            <option value="{{ $party->id }}" {{ old('party_id', $partyId) == $party->id ? 'selected' : '' }}>
-                                {{ $party->name }} ({{ $party->type_label }})
-                            </option>
+                        @php
+                            $groupedParties = $parties->groupBy('type');
+                        @endphp
+                        @foreach($groupedParties as $type => $typeParties)
+                            <optgroup label="{{ \App\Domain\Accounting\Enums\PartyType::getLabel($type) }}">
+                                @foreach($typeParties as $party)
+                                    <option value="{{ $party->id }}" {{ old('party_id', $partyId) == $party->id ? 'selected' : '' }}>
+                                        {{ $party->name }}@if($party->code) ({{ $party->code }})@endif
+                                    </option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                     @error('party_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                    <small class="text-muted">Personeller de bu listede görünür</small>
                 </div>
                 
                 <div class="col-md-3">
@@ -76,7 +84,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Tutar <span class="text-danger">*</span></label>
-                    <input type="number" name="amount" class="form-control @error('amount') is-invalid @enderror" value="{{ old('amount') }}" step="0.01" min="0.01" required>
+                    <input type="number" name="amount" id="amount" class="form-control @error('amount') is-invalid @enderror" value="{{ old('amount', $suggestedAmount ?? '') }}" step="0.01" min="0.01" required>
                     @error('amount')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -175,6 +183,129 @@
                 </div>
             </div>
             
+            {{-- Document Selection for Allocation --}}
+            @if(isset($openDocuments) && $openDocuments->count() > 0)
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Bu Ödemeyi Hangi Belgeye Dağıtacaksınız?
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="40">Seç</th>
+                                        <th>Belge No</th>
+                                        <th>Belge Tarihi</th>
+                                        <th>Tür</th>
+                                        <th>Açıklama</th>
+                                        <th class="text-end">Toplam</th>
+                                        <th class="text-end">Ödenen</th>
+                                        <th class="text-end">Kalan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($openDocuments as $doc)
+                                        <tr>
+                                            <td>
+                                                <input type="radio" 
+                                                       name="allocation_document_id" 
+                                                       value="{{ $doc->id }}" 
+                                                       class="form-check-input document-radio"
+                                                       data-unpaid="{{ $doc->unpaid_amount }}"
+                                                       {{ (isset($selectedDocument) && $selectedDocument && $selectedDocument->id == $doc->id) ? 'checked' : '' }}
+                                                       required>
+                                            </td>
+                                            <td>
+                                                <strong>{{ $doc->document_number ?? '-' }}</strong>
+                                            </td>
+                                            <td>{{ $doc->document_date->format('d.m.Y') }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ \App\Domain\Accounting\Enums\DocumentType::getLabel($doc->type) }}</span>
+                                            </td>
+                                            <td>
+                                                <small>{{ Str::limit($doc->description, 50) }}</small>
+                                            </td>
+                                            <td class="text-end">{{ number_format($doc->total_amount, 2) }} ₺</td>
+                                            <td class="text-end text-success">{{ number_format($doc->paid_amount, 2) }} ₺</td>
+                                            <td class="text-end fw-bold text-warning">{{ number_format($doc->unpaid_amount, 2) }} ₺</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Ödeme kaydedildikten sonra seçili belgeye otomatik olarak dağıtılacaktır.
+                        </small>
+                    </div>
+                </div>
+            @elseif(isset($selectedDocument) && $selectedDocument)
+                {{-- If a specific document is selected but not in openDocuments list, show it --}}
+                <input type="hidden" name="allocation_document_id" value="{{ $selectedDocument->id }}">
+                <div class="alert alert-info mt-4">
+                    <h6 class="mb-2">
+                        <i class="bi bi-file-earmark-check me-2"></i>
+                        Seçili Belge
+                    </h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ $selectedDocument->document_number ?? '-' }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                {{ $selectedDocument->document_date->format('d.m.Y') }}
+                                - {{ \App\Domain\Accounting\Enums\DocumentType::getLabel($selectedDocument->type) }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <strong>{{ number_format($selectedDocument->unpaid_amount, 2) }} ₺</strong>
+                            <br>
+                            <small class="text-muted">Kalan Tutar</small>
+                        </div>
+                    </div>
+                </div>
+            @endif
+            
+            {{-- Open Overtime Documents Info --}}
+            @if(isset($openOvertimes) && $openOvertimes->count() > 0 && (!isset($openDocuments) || $openDocuments->count() == 0))
+                <div class="alert alert-info mt-4">
+                    <h6 class="mb-3">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Açık Mesai Tahakkukları
+                    </h6>
+                    <div class="list-group">
+                        @foreach($openOvertimes as $overtimeDoc)
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ $overtimeDoc->document_number }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ $overtimeDoc->document_date->format('d.m.Y') }}
+                                            @if($overtimeDoc->description)
+                                                - {{ $overtimeDoc->description }}
+                                            @endif
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <strong>{{ number_format($overtimeDoc->unpaid_amount, 2) }} ₺</strong>
+                                        <br>
+                                        <small class="text-muted">Kalan</small>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <small class="text-muted mt-2 d-block">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Bu mesai tahakkuklarına ödeme yapmak için yukarıdaki "Belge Seç" bölümünden ilgili belgeyi seçin.
+                    </small>
+                </div>
+            @endif
+            
             <div class="mt-4 d-flex justify-content-between">
                 <a href="{{ route('accounting.payments.index') }}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left me-1"></i>Geri
@@ -223,5 +354,26 @@
     
     paymentTypeSelect.addEventListener('change', updateFields);
     updateFields(); // Initial call
+    
+    // Auto-fill amount when document is selected
+    const documentRadios = document.querySelectorAll('.document-radio');
+    const amountInput = document.getElementById('amount');
+    
+    documentRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                const unpaidAmount = parseFloat(this.dataset.unpaid);
+                if (unpaidAmount > 0 && (!amountInput.value || amountInput.value == 0)) {
+                    amountInput.value = unpaidAmount.toFixed(2);
+                }
+            }
+        });
+    });
+    
+    // If a document is pre-selected, trigger the change event
+    const checkedRadio = document.querySelector('.document-radio:checked');
+    if (checkedRadio) {
+        checkedRadio.dispatchEvent(new Event('change'));
+    }
 </script>
 @endsection

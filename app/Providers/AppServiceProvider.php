@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // Register EmployeeObserver for auto-syncing with Party
+        \App\Models\Employee::observe(\App\Observers\EmployeeObserver::class);
     }
 }

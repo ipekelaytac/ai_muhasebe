@@ -53,19 +53,72 @@
                     @enderror
                 </div>
                 
+                <script>
+                // Filter party dropdown based on document type
+                document.addEventListener('DOMContentLoaded', function() {
+                    const documentTypeSelect = document.getElementById('document_type');
+                    const partySelect = document.getElementById('party_id');
+                    const employeeTypes = @json(\App\Domain\Accounting\Enums\DocumentType::EMPLOYEE_TYPES);
+                    
+                    function filterParties() {
+                        const selectedType = documentTypeSelect.value;
+                        const optgroups = partySelect.querySelectorAll('optgroup');
+                        const options = partySelect.querySelectorAll('option[data-party-type]');
+                        
+                        if (!selectedType) {
+                            // Show all parties
+                            optgroups.forEach(opt => opt.style.display = '');
+                            options.forEach(opt => opt.style.display = '');
+                            return;
+                        }
+                        
+                        const isEmployeeType = employeeTypes.includes(selectedType);
+                        
+                        optgroups.forEach(optgroup => {
+                            const partyType = optgroup.getAttribute('data-party-type');
+                            if (isEmployeeType) {
+                                // For employee types, show all but highlight employee parties
+                                optgroup.style.display = '';
+                                if (partyType === 'employee') {
+                                    optgroup.style.fontWeight = 'bold';
+                                }
+                            } else {
+                                // For non-employee types, hide employee optgroup by default
+                                if (partyType === 'employee') {
+                                    optgroup.style.display = 'none';
+                                } else {
+                                    optgroup.style.display = '';
+                                }
+                            }
+                        });
+                    }
+                    
+                    documentTypeSelect.addEventListener('change', filterParties);
+                    filterParties(); // Run on page load
+                });
+                </script>
+                
                 <div class="col-md-6">
                     <label class="form-label">Cari <span class="text-danger">*</span></label>
-                    <select name="party_id" class="form-select @error('party_id') is-invalid @enderror" required>
+                    <select name="party_id" id="party_id" class="form-select @error('party_id') is-invalid @enderror" required>
                         <option value="">Seçiniz</option>
-                        @foreach($parties as $party)
-                            <option value="{{ $party->id }}" {{ old('party_id', $partyId) == $party->id ? 'selected' : '' }}>
-                                {{ $party->name }} ({{ $party->type_label }})
-                            </option>
+                        @php
+                            $groupedParties = $parties->groupBy('type');
+                        @endphp
+                        @foreach($groupedParties as $type => $typeParties)
+                            <optgroup label="{{ \App\Domain\Accounting\Enums\PartyType::getLabel($type) }}" data-party-type="{{ $type }}">
+                                @foreach($typeParties as $party)
+                                    <option value="{{ $party->id }}" data-party-type="{{ $type }}" {{ old('party_id', $partyId) == $party->id ? 'selected' : '' }}>
+                                        {{ $party->name }}@if($party->code) ({{ $party->code }})@endif
+                                    </option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                     @error('party_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                    <small class="text-muted">Personeller de bu listede görünür</small>
                 </div>
                 
                 <div class="col-md-3">

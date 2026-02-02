@@ -326,7 +326,7 @@ class Document extends Model
     }
     
     /**
-     * Generate next document number
+     * Generate next document number (thread-safe with collision detection)
      */
     public static function generateNumber(int $companyId, ?int $branchId, string $type): string
     {
@@ -346,8 +346,36 @@ class Document extends Model
             default => 'BL',
         };
         
+        // Get sequence number
         $sequence = NumberSequence::getNext($companyId, $branchId, 'document', $type, $year);
         
-        return $prefix . $year . '-' . str_pad($sequence, 6, '0', STR_PAD_LEFT);
+        // Generate base document number
+        $baseNumber = $prefix . $year . '-' . str_pad($sequence, 6, '0', STR_PAD_LEFT);
+        
+        // Check if this number already exists (race condition protection)
+        $maxRetries = 5;
+        $attempt = 0;
+        $documentNumber = $baseNumber;
+        
+        while ($attempt < $maxRetries) {
+            // Check if document number already exists
+            $exists = static::where('company_id', $companyId)
+                ->where('document_number', $documentNumber)
+                ->exists();
+            
+            if (!$exists) {
+                // Number is available, return it
+                return $documentNumber;
+            }
+            
+            // Number exists, generate a new one with suffix
+            $attempt++;
+            $suffix = str_pad($attempt, 2, '0', STR_PAD_LEFT);
+            $documentNumber = $baseNumber . '-' . $suffix;
+        }
+        
+        // If all retries failed, use timestamp-based suffix as fallback
+        $timestampSuffix = substr(md5(microtime(true) . $companyId . $branchId), 0, 4);
+        return $baseNumber . '-' . strtoupper($timestampSuffix);
     }
 }

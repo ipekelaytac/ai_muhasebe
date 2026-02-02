@@ -143,7 +143,7 @@
     </div>
     @if($parties->hasPages())
         <div class="card-footer bg-white">
-            {{ $parties->links() }}
+            {{ $parties->appends(request()->query())->links('vendor.pagination.bootstrap-5') }}
         </div>
     @endif
 </div>

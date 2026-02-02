@@ -18,68 +18,80 @@
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ route('accounting.documents.index') }}" class="row g-3">
-            <div class="col-md-3">
-                <input type="text" name="search" class="form-control" placeholder="Belge no, açıklama..." value="{{ request('search') }}">
-            </div>
-            <div class="col-md-2">
-                <select name="type" class="form-select">
-                    <option value="">Tüm Tipler</option>
-                    @foreach(\App\Domain\Accounting\Enums\DocumentType::ALL as $type)
-                        <option value="{{ $type }}" {{ request('type') == $type ? 'selected' : '' }}>
-                            {{ \App\Domain\Accounting\Enums\DocumentType::getLabel($type) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="direction" class="form-select">
-                    <option value="">Tüm Yönler</option>
-                    <option value="receivable" {{ request('direction') == 'receivable' ? 'selected' : '' }}>Alacak</option>
-                    <option value="payable" {{ request('direction') == 'payable' ? 'selected' : '' }}>Borç</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="status" class="form-select">
-                    <option value="">Tüm Durumlar</option>
-                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Bekliyor</option>
-                    <option value="partial" {{ request('status') == 'partial' ? 'selected' : '' }}>Kısmi</option>
-                    <option value="settled" {{ request('status') == 'settled' ? 'selected' : '' }}>Kapandı</option>
-                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>İptal</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select name="party_id" class="form-select">
-                    <option value="">Tüm Cariler</option>
-                    @foreach($parties as $party)
-                        <option value="{{ $party->id }}" {{ request('party_id') == $party->id ? 'selected' : '' }}>
-                            {{ $party->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
-                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}" placeholder="Başlangıç">
-            </div>
-            <div class="col-md-3">
-                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}" placeholder="Bitiş">
-            </div>
-            <div class="col-md-2">
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="open_only" value="1" id="open_only" {{ request('open_only') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="open_only">Sadece Açık</label>
+        <form method="GET" action="{{ route('accounting.documents.index') }}">
+            <div class="row g-3">
+                <div class="col-md-12 col-lg-3">
+                    <label class="form-label small">Arama</label>
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Belge no, açıklama..." value="{{ request('search') }}">
                 </div>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search me-1"></i>Filtrele
-                </button>
-            </div>
-            <div class="col-md-2">
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">Tip</label>
+                    <select name="type" class="form-select form-select-sm">
+                        <option value="">Tüm Tipler</option>
+                        @foreach(\App\Domain\Accounting\Enums\DocumentType::ALL as $type)
+                            <option value="{{ $type }}" {{ request('type') == $type ? 'selected' : '' }}>
+                                {{ \App\Domain\Accounting\Enums\DocumentType::getLabel($type) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">Yön</label>
+                    <select name="direction" class="form-select form-select-sm">
+                        <option value="">Tüm Yönler</option>
+                        <option value="receivable" {{ request('direction') == 'receivable' ? 'selected' : '' }}>Alacak</option>
+                        <option value="payable" {{ request('direction') == 'payable' ? 'selected' : '' }}>Borç</option>
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">Durum</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Bekliyor</option>
+                        <option value="partial" {{ request('status') == 'partial' ? 'selected' : '' }}>Kısmi</option>
+                        <option value="settled" {{ request('status') == 'settled' ? 'selected' : '' }}>Kapandı</option>
+                        <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>İptal</option>
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label small">Cari</label>
+                    <select name="party_id" class="form-select form-select-sm">
+                        <option value="">Tüm Cariler</option>
+                        @foreach($parties as $party)
+                            <option value="{{ $party->id }}" {{ request('party_id') == $party->id ? 'selected' : '' }}>
+                                {{ $party->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">Başlangıç</label>
+                    <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">Bitiş</label>
+                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">&nbsp;</label>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="open_only" value="1" id="open_only" {{ request('open_only') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="open_only">Sadece Açık</label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-search me-1"></i>Filtrele
+                    </button>
+                </div>
                 @if(request()->hasAny(['search', 'type', 'direction', 'status', 'party_id', 'start_date', 'end_date', 'open_only']))
-                    <a href="{{ route('accounting.documents.index') }}" class="btn btn-secondary w-100">
+                <div class="col-md-6 col-lg-2">
+                    <label class="form-label small">&nbsp;</label>
+                    <a href="{{ route('accounting.documents.index') }}" class="btn btn-secondary btn-sm w-100">
                         <i class="bi bi-x-circle me-1"></i>Temizle
                     </a>
+                </div>
                 @endif
             </div>
         </form>
@@ -185,9 +197,9 @@
             </table>
         </div>
     </div>
-    @if($documents->hasPages())
+    @if(method_exists($documents, 'hasPages') && $documents->hasPages())
         <div class="card-footer bg-white">
-            {{ $documents->links() }}
+            {{ $documents->appends(request()->query())->links('vendor.pagination.bootstrap-5') }}
         </div>
     @endif
 </div>

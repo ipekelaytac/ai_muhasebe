@@ -13,6 +13,7 @@ class PayrollDeduction extends Model
         'payroll_item_id',
         'payroll_installment_id',
         'deduction_type_id',
+        'payment_allocation_id',
         'amount',
         'description',
         'created_by',
@@ -40,6 +41,14 @@ class PayrollDeduction extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the accounting payment allocation linked to this deduction
+     */
+    public function paymentAllocation()
+    {
+        return $this->belongsTo(\App\Domain\Accounting\Models\PaymentAllocation::class, 'payment_allocation_id');
     }
 
     public function isGeneral()

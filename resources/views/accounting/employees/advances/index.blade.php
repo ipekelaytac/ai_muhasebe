@@ -126,7 +126,7 @@
             </div>
             
             <div class="mt-3">
-                {{ $advances->links() }}
+                {{ $advances->appends(request()->query())->links('vendor.pagination.bootstrap-5') }}
             </div>
         @else
             <p class="text-muted mb-0">Henüz avans kaydı bulunmamaktadır.</p>

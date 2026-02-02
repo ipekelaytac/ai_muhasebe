@@ -44,6 +44,11 @@ class AllocationService
             $createdAllocations = [];
             $totalAllocated = 0;
             
+            // For internal_offset payments, allocations can exceed payment amount
+            // because it's a netting operation (e.g., advance deduction allocates to both advance and salary docs)
+            $isInternalOffset = $payment->type === PaymentType::INTERNAL_OFFSET;
+            $maxAllocationAmount = $isInternalOffset ? PHP_INT_MAX : $availableAmount;
+            
             foreach ($allocations as $allocationData) {
                 // Lock document for update to prevent concurrent allocations
                 $document = Document::lockForUpdate()->findOrFail($allocationData['document_id']);
@@ -56,7 +61,7 @@ class AllocationService
                 
                 // Validate direction compatibility
                 // Internal offset payments can allocate across opposite directions (for advance deductions)
-                if ($payment->type !== PaymentType::INTERNAL_OFFSET) {
+                if (!$isInternalOffset) {
                     $this->validateDirectionCompatibility($payment, $document);
                 }
                 
@@ -66,7 +71,9 @@ class AllocationService
                     throw new \Exception("Dağıtım tutarı belgenin kalan borcundan fazla: {$document->document_number} (Kalan: {$unpaidAmount})");
                 }
                 
-                if ($totalAllocated + $amount > $availableAmount) {
+                // For internal_offset, we allow allocations to exceed payment amount (netting operation)
+                // For regular payments, total allocation cannot exceed payment amount
+                if (!$isInternalOffset && $totalAllocated + $amount > $availableAmount) {
                     throw new \Exception('Dağıtım toplamı ödeme tutarını aşıyor.');
                 }
                 
@@ -74,6 +81,7 @@ class AllocationService
                 $allocation = PaymentAllocation::create([
                     'payment_id' => $payment->id,
                     'document_id' => $document->id,
+                    'payroll_installment_id' => $allocationData['payroll_installment_id'] ?? null,
                     'amount' => $amount,
                     'allocation_date' => $allocationData['allocation_date'] ?? now()->toDateString(),
                     'notes' => $allocationData['notes'] ?? null,

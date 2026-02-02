@@ -46,6 +46,7 @@ class PaymentAllocation extends Model
     protected $fillable = [
         'payment_id',
         'document_id',
+        'payroll_installment_id',
         'amount',
         'allocation_date',
         'notes',
@@ -67,6 +68,14 @@ class PaymentAllocation extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);
+    }
+    
+    /**
+     * Get the payroll installment this allocation is linked to (optional)
+     */
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PayrollInstallment::class, 'payroll_installment_id');
     }
     
     // Scopes

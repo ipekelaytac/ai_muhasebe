@@ -139,7 +139,12 @@ class DocumentController extends Controller
         }
         
         $branches = Branch::where('company_id', $user->company_id)->get();
-        $parties = Party::where('company_id', $user->company_id)->active()->orderBy('name')->get();
+        // Get parties including employee parties
+        $parties = Party::where('company_id', $user->company_id)
+            ->active()
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
         $categories = \App\Domain\Accounting\Models\ExpenseCategory::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->orderBy('name')

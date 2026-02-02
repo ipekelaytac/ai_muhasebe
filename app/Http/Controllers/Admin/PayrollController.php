@@ -18,6 +18,7 @@ use App\Models\EmployeeContract;
 use App\Models\Company;
 use App\Models\Branch;
 use App\Models\FinanceCategory;
+use App\Domain\Accounting\Services\PayrollDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -179,12 +180,28 @@ class PayrollController extends Controller
                 $advancesDeducted = 0;
 
                 // Calculate overtime total for the period
-                $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
-                    ->whereBetween('overtime_date', [
-                        $targetDate->toDateString(),
-                        $targetDate->copy()->endOfMonth()->toDateString()
-                    ])
-                    ->sum('amount');
+                // First try new accounting system (overtime_due documents)
+                $overtimeTotal = 0;
+                if ($employee->party_id) {
+                    $overtimeTotal = \App\Domain\Accounting\Models\Document::where('company_id', $period->company_id)
+                        ->where('party_id', $employee->party_id)
+                        ->where('type', \App\Domain\Accounting\Enums\DocumentType::OVERTIME_DUE)
+                        ->whereBetween('document_date', [
+                            $targetDate->toDateString(),
+                            $targetDate->copy()->endOfMonth()->toDateString()
+                        ])
+                        ->sum('total_amount');
+                }
+                
+                // Fallback to legacy overtime records if no documents found
+                if ($overtimeTotal == 0) {
+                    $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
+                        ->whereBetween('overtime_date', [
+                            $targetDate->toDateString(),
+                            $targetDate->copy()->endOfMonth()->toDateString()
+                        ])
+                        ->sum('amount');
+                }
 
                 $netPayable = $contract->monthly_net_salary 
                     + $contract->meal_allowance 
@@ -209,7 +226,7 @@ class PayrollController extends Controller
                 $payDay1 = min($contract->pay_day_1, $lastDayOfMonth);
                 $payDay2 = min($contract->pay_day_2, $lastDayOfMonth);
 
-                PayrollInstallment::create([
+                $installment1 = PayrollInstallment::create([
                     'payroll_item_id' => $item->id,
                     'installment_no' => 1,
                     'due_date' => Carbon::create($period->year, $period->month, $payDay1),
@@ -217,13 +234,22 @@ class PayrollController extends Controller
                     'title' => 'Ayın 5\'i',
                 ]);
 
-                PayrollInstallment::create([
+                $installment2 = PayrollInstallment::create([
                     'payroll_item_id' => $item->id,
                     'installment_no' => 2,
                     'due_date' => Carbon::create($period->year, $period->month, $payDay2),
                     'planned_amount' => $contract->pay_amount_2,
                     'title' => 'Ayın 20\'si',
                 ]);
+
+                // Create accounting Documents for each installment
+                try {
+                    $payrollDocumentService = app(PayrollDocumentService::class);
+                    $payrollDocumentService->createDocumentsForPayrollItem($item);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the entire payroll generation
+                    \Log::warning("Failed to create accounting documents for PayrollItem {$item->id}: " . $e->getMessage());
+                }
             }
 
             DB::commit();
@@ -235,6 +261,46 @@ class PayrollController extends Controller
         }
     }
 
+    /**
+     * Create accounting documents for a PayrollItem that doesn't have them
+     */
+    public function createDocuments(PayrollItem $item)
+    {
+        $user = Auth::user();
+        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
+            abort(403);
+        }
+        
+        // Check if installments exist
+        if ($item->installments->count() !== 2) {
+            return back()->withErrors(['error' => 'Bu bordro kalemi için 2 taksit bulunmalıdır.']);
+        }
+        
+        // Check if documents already exist
+        $hasDocuments = $item->installments->every(function ($installment) {
+            return $installment->accounting_document_id !== null;
+        });
+        
+        if ($hasDocuments) {
+            return back()->with('info', 'Bu bordro kalemi için muhasebe belgeleri zaten oluşturulmuş.');
+        }
+        
+        // Ensure employee has party_id
+        if (!$item->employee->party_id) {
+            return back()->withErrors(['error' => 'Personel için cari kaydı bulunamadı. Lütfen personeli düzenleyip kaydedin.']);
+        }
+        
+        try {
+            $payrollDocumentService = app(\App\Domain\Accounting\Services\PayrollDocumentService::class);
+            $payrollDocumentService->createDocumentsForPayrollItem($item);
+            
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Muhasebe belgeleri başarıyla oluşturuldu.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Muhasebe belgeleri oluşturulurken hata oluştu: ' . $e->getMessage()]);
+        }
+    }
+
     public function showItem(PayrollItem $item)
     {
         $user = Auth::user();
@@ -242,51 +308,34 @@ class PayrollController extends Controller
             abort(403);
         }
         
+        // Load relationships
         $item->load([
             'employee.company', 
             'employee.branch', 
             'payrollPeriod.company', 
             'payrollPeriod.branch',
-            'installments.payments',
+            'installments.document',
             'installments.deductions.deductionType',
-            // Legacy advance settlements removed
-            // 'installments.advanceSettlements.advance',
             'deductions.deductionType',
             'deductions.installment',
-            // 'advanceSettlements.advance',
-            // 'advanceSettlements.installment',
-            'payments.allocations.installment'
         ]);
         
-        // Get overtime records for this period
-        $overtimes = \App\Models\Overtime::where('employee_id', $item->employee_id)
-            ->whereBetween('overtime_date', [
-                $item->payrollPeriod->year . '-' . str_pad($item->payrollPeriod->month, 2, '0', STR_PAD_LEFT) . '-01',
-                \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->endOfMonth()->toDateString()
-            ])
-            ->orderBy('overtime_date')
-            ->get();
+        // Get overtime documents from new accounting system for this period
+        $overtimeDocuments = collect([]);
+        if ($item->employee->party_id) {
+            $periodStart = \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->toDateString();
+            $periodEnd = \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->endOfMonth()->toDateString();
+            
+            $overtimeDocuments = \App\Domain\Accounting\Models\Document::where('company_id', $item->payrollPeriod->company_id)
+                ->where('party_id', $item->employee->party_id)
+                ->where('type', \App\Domain\Accounting\Enums\DocumentType::OVERTIME_DUE)
+                ->whereBetween('document_date', [$periodStart, $periodEnd])
+                ->orderBy('document_date', 'desc')
+                ->get();
+        }
         
-        $item->load([
-            'employee', 
-            'payrollPeriod', 
-            'installments.paymentAllocations.payment',
-            'installments.deductions.deductionType',
-            // Legacy advance settlements removed
-            // 'installments.advanceSettlements.advance',
-            'payments' => function ($q) {
-                $q->with(['allocations' => function ($q2) {
-                    $q2->with('installment');
-                }]);
-            },
-            'deductions.deductionType',
-            'deductions.installment',
-            // 'advanceSettlements.advance',
-            // 'advanceSettlements.installment',
-        ]);
-        
-        // Get overtime records for this period
-        $overtimes = \App\Models\Overtime::where('employee_id', $item->employee_id)
+        // Legacy overtime records (for backward compatibility - deprecated)
+        $legacyOvertimes = \App\Models\Overtime::where('employee_id', $item->employee_id)
             ->whereBetween('overtime_date', [
                 \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->toDateString(),
                 \Carbon\Carbon::create($item->payrollPeriod->year, $item->payrollPeriod->month, 1)->endOfMonth()->toDateString()
@@ -299,10 +348,6 @@ class PayrollController extends Controller
             ->where('is_active', 1)
             ->get();
 
-        // TODO: Migrate to use documents with type advance_given
-        // Legacy Advance model removed - table dropped
-        $openAdvances = collect([]);
-
         // Get open debts for this employee
         $openDebts = \App\Models\EmployeeDebt::where('employee_id', $item->employee_id)
             ->where('status', 1)
@@ -311,8 +356,36 @@ class PayrollController extends Controller
             ->filter(function ($debt) {
                 return $debt->remaining_amount > 0;
             });
+        
+        // Get accounting payments per installment
+        $installmentPayments = [];
+        foreach ($item->installments as $installment) {
+            if ($installment->accounting_document_id) {
+                $installmentPayments[$installment->installment_no] = \App\Domain\Accounting\Models\Payment::whereHas('allocations', function ($q) use ($installment) {
+                    $q->where('document_id', $installment->accounting_document_id)
+                      ->where('status', 'active');
+                })
+                ->with(['allocations' => function ($q) use ($installment) {
+                    $q->where('document_id', $installment->accounting_document_id)
+                      ->where('status', 'active')
+                      ->with('document');
+                }])
+                ->orderBy('payment_date', 'desc')
+                ->get();
+            } else {
+                $installmentPayments[$installment->installment_no] = collect([]);
+            }
+        }
+        
+        // Get open advances for this employee (for advance deduction UI)
+        if ($item->employee->party_id) {
+            $advanceService = app(\App\Domain\Accounting\Services\EmployeeAdvanceService::class);
+            $openAdvances = $advanceService->suggestOpenAdvancesForEmployee($item->employee->party_id);
+        } else {
+            $openAdvances = collect([]);
+        }
 
-        return view('admin.payroll.item', compact('item', 'deductionTypes', 'openAdvances', 'overtimes', 'openDebts'));
+        return view('admin.payroll.item', compact('item', 'deductionTypes', 'openAdvances', 'overtimeDocuments', 'legacyOvertimes', 'openDebts', 'installmentPayments'));
     }
 
     public function addEmployeeForm(PayrollPeriod $period)
@@ -401,12 +474,28 @@ class PayrollController extends Controller
             $advancesDeducted = 0;
 
             // Calculate overtime total for the period
-            $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
-                ->whereBetween('overtime_date', [
-                    $targetDate->toDateString(),
-                    $targetDate->copy()->endOfMonth()->toDateString()
-                ])
-                ->sum('amount');
+            // First try new accounting system (overtime_due documents)
+            $overtimeTotal = 0;
+            if ($employee->party_id) {
+                $overtimeTotal = \App\Domain\Accounting\Models\Document::where('company_id', $period->company_id)
+                    ->where('party_id', $employee->party_id)
+                    ->where('type', \App\Domain\Accounting\Enums\DocumentType::OVERTIME_DUE)
+                    ->whereBetween('document_date', [
+                        $targetDate->toDateString(),
+                        $targetDate->copy()->endOfMonth()->toDateString()
+                    ])
+                    ->sum('total_amount');
+            }
+            
+            // Fallback to legacy overtime records if no documents found
+            if ($overtimeTotal == 0) {
+                $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
+                    ->whereBetween('overtime_date', [
+                        $targetDate->toDateString(),
+                        $targetDate->copy()->endOfMonth()->toDateString()
+                    ])
+                    ->sum('amount');
+            }
 
             $netPayable = $contract->monthly_net_salary 
                 + $contract->meal_allowance 
@@ -431,7 +520,7 @@ class PayrollController extends Controller
             $payDay1 = min($contract->pay_day_1, $lastDayOfMonth);
             $payDay2 = min($contract->pay_day_2, $lastDayOfMonth);
 
-            PayrollInstallment::create([
+            $installment1 = PayrollInstallment::create([
                 'payroll_item_id' => $item->id,
                 'installment_no' => 1,
                 'due_date' => Carbon::create($period->year, $period->month, $payDay1),
@@ -439,13 +528,22 @@ class PayrollController extends Controller
                 'title' => 'Ayın 5\'i',
             ]);
 
-            PayrollInstallment::create([
+            $installment2 = PayrollInstallment::create([
                 'payroll_item_id' => $item->id,
                 'installment_no' => 2,
                 'due_date' => Carbon::create($period->year, $period->month, $payDay2),
                 'planned_amount' => $contract->pay_amount_2,
                 'title' => 'Ayın 20\'si',
             ]);
+
+            // Create accounting Documents for each installment
+            try {
+                $payrollDocumentService = app(PayrollDocumentService::class);
+                $payrollDocumentService->createDocumentsForPayrollItem($item);
+            } catch (\Exception $e) {
+                // Log error but don't fail the entire operation
+                \Log::warning("Failed to create accounting documents for PayrollItem {$item->id}: " . $e->getMessage());
+            }
 
             DB::commit();
             return redirect()->route('admin.payroll.show', $period)
@@ -456,103 +554,32 @@ class PayrollController extends Controller
         }
     }
 
+    /**
+     * @deprecated Legacy PayrollPayment method removed
+     * Payments must be created via accounting system
+     * Redirects to accounting payment create with prefilled data
+     */
     public function addPayment(Request $request, PayrollItem $item)
     {
-        $user = Auth::user();
-        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
-            abort(403);
+        // Redirect to accounting payment create
+        $installmentNo = $request->get('installment_no', 1);
+        $installments = $item->installments()->orderBy('installment_no')->get();
+        $installment = $installments->where('installment_no', $installmentNo)->first();
+        
+        if (!$installment || !$installment->accounting_document_id) {
+            return back()->withErrors(['error' => 'Bu taksit için muhasebe belgesi bulunamadı.']);
         }
-
-        $request->validate([
-            'payment_date' => 'required|date',
-            'amount' => 'required|numeric|min:0.01',
-            'method' => 'required|in:cash,bank,other',
-            'reference_no' => 'nullable|string|max:100',
-            'allocation_type' => 'required|in:installment_1,installment_2,both,auto',
-            'amount_1' => 'required_if:allocation_type,both|nullable|numeric|min:0',
-            'amount_2' => 'required_if:allocation_type,both|nullable|numeric|min:0',
+        
+        $suggestedAmount = $installment->remaining_amount;
+        
+        return redirect()->route('accounting.payments.create', [
+            'party_id' => $item->employee->party_id,
+            'document_id' => $installment->accounting_document_id,
+            'suggested_amount' => $suggestedAmount,
+            'context' => 'payroll',
+            'payroll_item_id' => $item->id,
+            'installment_no' => $installmentNo,
         ]);
-
-        DB::beginTransaction();
-        try {
-            $installments = $item->installments()->orderBy('installment_no')->get();
-            $installment1 = $installments->where('installment_no', 1)->first();
-            $installment2 = $installments->where('installment_no', 2)->first();
-
-            $payment = PayrollPayment::create([
-                'payroll_item_id' => $item->id,
-                'payment_date' => $request->payment_date,
-                'amount' => $request->amount,
-                'method' => $request->method,
-                'reference_no' => $request->reference_no,
-                'created_by' => $user->id,
-            ]);
-
-            $allocations = [];
-            if ($request->allocation_type === 'installment_1') {
-                $allocations[] = [
-                    'payroll_installment_id' => $installment1->id,
-                    'allocated_amount' => $request->amount,
-                ];
-            } elseif ($request->allocation_type === 'installment_2') {
-                $allocations[] = [
-                    'payroll_installment_id' => $installment2->id,
-                    'allocated_amount' => $request->amount,
-                ];
-            } elseif ($request->allocation_type === 'both') {
-                if (abs(($request->amount_1 + $request->amount_2) - $request->amount) > 0.01) {
-                    throw new \Exception('Taksit tutarları toplamı ödeme tutarına eşit olmalıdır.');
-                }
-                $allocations[] = [
-                    'payroll_installment_id' => $installment1->id,
-                    'allocated_amount' => $request->amount_1,
-                ];
-                $allocations[] = [
-                    'payroll_installment_id' => $installment2->id,
-                    'allocated_amount' => $request->amount_2,
-                ];
-            } else { // auto
-                $remaining1 = $installment1->remaining_amount;
-                $remaining2 = $installment2->remaining_amount;
-                
-                if ($request->amount <= $remaining1) {
-                    $allocations[] = [
-                        'payroll_installment_id' => $installment1->id,
-                        'allocated_amount' => $request->amount,
-                    ];
-                } else {
-                    $allocations[] = [
-                        'payroll_installment_id' => $installment1->id,
-                        'allocated_amount' => $remaining1,
-                    ];
-                    $remaining = $request->amount - $remaining1;
-                    if ($remaining > 0) {
-                        $allocations[] = [
-                            'payroll_installment_id' => $installment2->id,
-                            'allocated_amount' => min($remaining, $remaining2),
-                        ];
-                    }
-                }
-            }
-
-            foreach ($allocations as $allocation) {
-                PayrollPaymentAllocation::create([
-                    'payroll_payment_id' => $payment->id,
-                    'payroll_installment_id' => $allocation['payroll_installment_id'],
-                    'allocated_amount' => $allocation['allocated_amount'],
-                ]);
-            }
-
-            // TODO: Migrate to create document with type payroll_due instead of FinanceTransaction
-            // Legacy FinanceTransaction model removed - table dropped
-
-            DB::commit();
-            return redirect()->route('admin.payroll.item', $item)
-                ->with('success', 'Ödeme başarıyla eklendi.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
     }
 
     public function addDeduction(Request $request, PayrollItem $item)
@@ -569,35 +596,85 @@ class PayrollController extends Controller
             'installment_id' => 'nullable|exists:payroll_installments,id',
         ]);
 
+        $installment = null;
         if ($request->installment_id) {
             $installment = PayrollInstallment::findOrFail($request->installment_id);
             if ($installment->payroll_item_id != $item->id) {
                 return back()->withErrors(['installment_id' => 'Geçersiz taksit.']);
             }
+            if (!$installment->accounting_document_id) {
+                return back()->withErrors(['installment_id' => 'Bu taksit için muhasebe belgesi bulunamadı.']);
+            }
         }
 
-        PayrollDeduction::create([
-            'payroll_item_id' => $item->id,
-            'payroll_installment_id' => $request->installment_id,
-            'deduction_type_id' => $request->deduction_type_id,
-            'amount' => $request->amount,
-            'description' => $request->description,
-            'created_by' => $user->id,
-        ]);
+        DB::beginTransaction();
+        try {
+            // Create offset payment (no cash movement)
+            $paymentService = app(\App\Domain\Accounting\Services\PaymentService::class);
+            $allocationService = app(\App\Domain\Accounting\Services\AllocationService::class);
+            
+            $deductionType = PayrollDeductionType::findOrFail($request->deduction_type_id);
+            
+            $payment = $paymentService->createPayment([
+                'company_id' => $item->payrollPeriod->company_id,
+                'branch_id' => $item->payrollPeriod->branch_id,
+                'party_id' => $item->employee->party_id,
+                'type' => \App\Domain\Accounting\Enums\PaymentType::INTERNAL_OFFSET,
+                'direction' => 'internal',
+                'amount' => $request->amount,
+                'payment_date' => now()->toDateString(),
+                'status' => 'confirmed',
+                'description' => "Kesinti: {$deductionType->name}" . ($request->description ? " - {$request->description}" : ''),
+            ]);
+            
+            // Allocate to installment document(s)
+            $allocations = [];
+            if ($installment) {
+                // Allocate to specific installment
+                $allocations[] = [
+                    'document_id' => $installment->accounting_document_id,
+                    'amount' => $request->amount,
+                    'payroll_installment_id' => $installment->id,
+                    'notes' => "Kesinti: {$deductionType->name}",
+                ];
+            } else {
+                // Allocate to both installments proportionally
+                $installments = $item->installments()->orderBy('installment_no')->get();
+                $totalPlanned = $installments->sum('planned_amount');
+                
+                foreach ($installments as $inst) {
+                    if ($inst->accounting_document_id && $totalPlanned > 0) {
+                        $proportionalAmount = ($inst->planned_amount / $totalPlanned) * $request->amount;
+                        $allocations[] = [
+                            'document_id' => $inst->accounting_document_id,
+                            'amount' => $proportionalAmount,
+                            'payroll_installment_id' => $inst->id,
+                            'notes' => "Kesinti: {$deductionType->name} (Orantılı)",
+                        ];
+                    }
+                }
+            }
+            
+            $createdAllocations = $allocationService->allocate($payment, $allocations);
+            
+            // Create PayrollDeduction record (for UI display and reporting)
+            $deduction = PayrollDeduction::create([
+                'payroll_item_id' => $item->id,
+                'payroll_installment_id' => $request->installment_id,
+                'deduction_type_id' => $request->deduction_type_id,
+                'amount' => $request->amount,
+                'description' => $request->description,
+                'payment_allocation_id' => $createdAllocations[0]->id ?? null, // Link to first allocation for audit trail
+                'created_by' => $user->id,
+            ]);
 
-        // Recalculate item totals
-        $item->deduction_total = $item->deductions()->sum('amount');
-        $item->net_payable = $item->base_net_salary 
-            + $item->meal_allowance 
-            + ($item->overtime_total ?? 0)
-            + $item->bonus_total 
-            - $item->deduction_total 
-            - $item->advances_deducted_total
-            - $item->debtPayments()->sum('amount');
-        $item->save();
-
-        return redirect()->route('admin.payroll.item', $item)
-            ->with('success', 'Kesinti başarıyla eklendi.');
+            DB::commit();
+            return redirect()->route('admin.payroll.item', $item)
+                ->with('success', 'Kesinti başarıyla eklendi ve muhasebe sistemine kaydedildi.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Kesinti eklenirken hata oluştu: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -717,32 +794,15 @@ class PayrollController extends Controller
         }
     }
 
+    /**
+     * @deprecated Legacy PayrollPayment deletion removed
+     * Payments must be cancelled/reversed via accounting system
+     */
     public function deletePayment(PayrollItem $item, PayrollPayment $payment)
     {
-        $user = Auth::user();
-        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
-            abort(403);
-        }
-
-        if ($payment->payroll_item_id != $item->id) {
-            abort(404);
-        }
-
-        DB::beginTransaction();
-        try {
-            // Delete allocations
-            $payment->allocations()->delete();
-            
-            // Delete payment
-            $payment->delete();
-
-            DB::commit();
-            return redirect()->route('admin.payroll.item', $item)
-                ->with('success', 'Ödeme başarıyla silindi.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Ödeme silinirken hata oluştu: ' . $e->getMessage()]);
-        }
+        return back()->withErrors([
+            'error' => 'Ödeme silme özelliği kaldırılmıştır. Ödemeleri muhasebe sisteminden iptal edin veya ters kayıt yapın.'
+        ]);
     }
 
     public function deleteDeduction(PayrollItem $item, PayrollDeduction $deduction)

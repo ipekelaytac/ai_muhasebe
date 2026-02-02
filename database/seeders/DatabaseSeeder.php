@@ -13,15 +13,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
+        // Production initial setup
         $this->call([
-            CompanySeeder::class,
-            BranchSeeder::class,
-            UserSeeder::class,
-            EmployeeSeeder::class,
-            EmployeeContractSeeder::class,
-            PayrollDeductionTypeSeeder::class,
-            FinanceCategorySeeder::class,
-            AccountingSeeder::class, // Accounting system: permissions, roles, base data
+            InitialSetupSeeder::class,
         ]);
+
+        // Development-only seeders (only run in local environment)
+        if (app()->environment('local')) {
+            $this->call([
+                DevOnlySeeder::class,
+            ]);
+        }
+
+        // Optional: Other seeders if needed
+        // $this->call([
+        //     PayrollDeductionTypeSeeder::class,
+        //     FinanceCategorySeeder::class,
+        //     AccountingSeeder::class,
+        // ]);
     }
 }

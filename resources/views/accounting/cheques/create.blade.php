@@ -42,15 +42,23 @@
                     <label class="form-label">Cari <span class="text-danger">*</span></label>
                     <select name="party_id" class="form-select @error('party_id') is-invalid @enderror" required>
                         <option value="">Seçiniz</option>
-                        @foreach($parties as $party)
-                            <option value="{{ $party->id }}" {{ old('party_id') == $party->id ? 'selected' : '' }}>
-                                {{ $party->name }}
-                            </option>
+                        @php
+                            $groupedParties = $parties->groupBy('type');
+                        @endphp
+                        @foreach($groupedParties as $type => $typeParties)
+                            <optgroup label="{{ \App\Domain\Accounting\Enums\PartyType::getLabel($type) }}">
+                                @foreach($typeParties as $party)
+                                    <option value="{{ $party->id }}" {{ old('party_id') == $party->id ? 'selected' : '' }}>
+                                        {{ $party->name }}@if($party->code) ({{ $party->code }})@endif
+                                    </option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                     @error('party_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                    <small class="text-muted">Personeller de bu listede görünür</small>
                 </div>
                 
                 <div class="col-md-6">

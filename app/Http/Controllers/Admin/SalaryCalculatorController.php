@@ -36,7 +36,6 @@ class SalaryCalculatorController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'overtime_hours' => 'nullable|numeric|min:0',
-            'late_hours' => 'nullable|numeric|min:0',
             'missing_hours' => 'nullable|numeric|min:0',
         ]);
 
@@ -81,17 +80,13 @@ class SalaryCalculatorController extends Controller
         $hourlyOvertimeRate = ($contract->monthly_net_salary / 225) * 1.5; // Maaş / 225 * 1.5
         $calculatedOvertime = $hourlyOvertimeRate * $overtimeHours;
         
-        // Calculate late arrival deduction (geç gelme kesintisi)
-        $lateHours = $request->input('late_hours', 0);
-        $hourlySalaryRate = $contract->monthly_net_salary / 225; // Saatlik maaş (225 saat/ay)
-        $calculatedLateDeduction = $hourlySalaryRate * $lateHours;
-        
         // Calculate missing hours deduction (eksik mesai kesintisi)
         $missingHours = $request->input('missing_hours', 0);
+        $hourlySalaryRate = $contract->monthly_net_salary / 225; // Saatlik maaş (225 saat/ay)
         $calculatedMissingDeduction = $hourlySalaryRate * $missingHours;
         
         // Total (kesintiler çıkarılır)
-        $totalAmount = $calculatedAmount + $calculatedMealAllowance + $calculatedOvertime - $calculatedLateDeduction - $calculatedMissingDeduction;
+        $totalAmount = $calculatedAmount + $calculatedMealAllowance + $calculatedOvertime - $calculatedMissingDeduction;
 
         $result = [
             'employee' => $employee,
@@ -108,9 +103,7 @@ class SalaryCalculatorController extends Controller
             'overtime_hours' => $overtimeHours,
             'hourly_overtime_rate' => $hourlyOvertimeRate,
             'calculated_overtime' => $calculatedOvertime,
-            'late_hours' => $lateHours,
             'hourly_salary_rate' => $hourlySalaryRate,
-            'calculated_late_deduction' => $calculatedLateDeduction,
             'missing_hours' => $missingHours,
             'calculated_missing_deduction' => $calculatedMissingDeduction,
             'total_amount' => $totalAmount,
