@@ -55,6 +55,30 @@
                                 step="0.5" min="0" class="form-control" placeholder="0">
                             <small class="text-muted">Saat cinsinden mesai süresi (örn: 2.5)</small>
                         </div>
+                        <div class="col-md-4">
+                            <label for="late_hours" class="form-label">
+                                <i class="bi bi-clock me-1 text-danger"></i>Geç Gelme Saati
+                            </label>
+                            <input type="number" name="late_hours" id="late_hours" 
+                                value="{{ old('late_hours', isset($result) ? $result['late_hours'] : '') }}" 
+                                step="0.5" min="0" class="form-control" placeholder="0">
+                            <small class="text-muted">Geç gelinen toplam saat (örn: 3)</small>
+                            <div id="lateDeductionPreview" class="mt-2 small text-danger" style="display: none;">
+                                <strong>Kesinti: <span id="lateDeductionAmount">0.00</span> ₺</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="missing_hours" class="form-label">
+                                <i class="bi bi-dash-circle me-1 text-danger"></i>Eksik Mesai Saati
+                            </label>
+                            <input type="number" name="missing_hours" id="missing_hours" 
+                                value="{{ old('missing_hours', isset($result) ? $result['missing_hours'] : '') }}" 
+                                step="0.5" min="0" class="form-control" placeholder="0">
+                            <small class="text-muted">Eksik çalışılan toplam saat (örn: 2)</small>
+                            <div id="missingDeductionPreview" class="mt-2 small text-danger" style="display: none;">
+                                <strong>Kesinti: <span id="missingDeductionAmount">0.00</span> ₺</strong>
+                            </div>
+                        </div>
                     </div>
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">
@@ -136,6 +160,24 @@
                                 <td class="text-end fw-bold text-success">{{ number_format($result['calculated_overtime'], 2) }} ₺</td>
                             </tr>
                             @endif
+                            @if($result['late_hours'] > 0)
+                            <tr>
+                                <td class="fw-bold text-danger">Geç Gelme Kesintisi</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end">{{ number_format($result['hourly_salary_rate'], 2) }} ₺/saat</td>
+                                <td class="text-end">{{ number_format($result['late_hours'], 1) }} saat</td>
+                                <td class="text-end fw-bold text-danger">-{{ number_format($result['calculated_late_deduction'], 2) }} ₺</td>
+                            </tr>
+                            @endif
+                            @if($result['missing_hours'] > 0)
+                            <tr>
+                                <td class="fw-bold text-danger">Eksik Mesai Kesintisi</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end">{{ number_format($result['hourly_salary_rate'], 2) }} ₺/saat</td>
+                                <td class="text-end">{{ number_format($result['missing_hours'], 1) }} saat</td>
+                                <td class="text-end fw-bold text-danger">-{{ number_format($result['calculated_missing_deduction'], 2) }} ₺</td>
+                            </tr>
+                            @endif
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
@@ -156,7 +198,15 @@
                     @endif
                     @if($result['overtime_hours'] > 0)
                     <p class="mb-2"><strong>Saatlik Mesai Ücreti:</strong> ({{ number_format($result['monthly_salary'], 2) }} ₺ ÷ 225) × 1.5 = {{ number_format($result['hourly_overtime_rate'], 2) }} ₺/saat</p>
-                    <p class="mb-0"><strong>Hesaplanan Mesai Ücreti:</strong> {{ number_format($result['hourly_overtime_rate'], 2) }} ₺ × {{ number_format($result['overtime_hours'], 1) }} saat = {{ number_format($result['calculated_overtime'], 2) }} ₺</p>
+                    <p class="mb-2"><strong>Hesaplanan Mesai Ücreti:</strong> {{ number_format($result['hourly_overtime_rate'], 2) }} ₺ × {{ number_format($result['overtime_hours'], 1) }} saat = {{ number_format($result['calculated_overtime'], 2) }} ₺</p>
+                    @endif
+                    @if($result['late_hours'] > 0)
+                    <p class="mb-2"><strong>Saatlik Maaş:</strong> {{ number_format($result['monthly_salary'], 2) }} ₺ ÷ 225 = {{ number_format($result['hourly_salary_rate'], 2) }} ₺/saat</p>
+                    <p class="mb-2"><strong>Geç Gelme Kesintisi:</strong> {{ number_format($result['hourly_salary_rate'], 2) }} ₺ × {{ number_format($result['late_hours'], 1) }} saat = {{ number_format($result['calculated_late_deduction'], 2) }} ₺</p>
+                    @endif
+                    @if($result['missing_hours'] > 0)
+                    <p class="mb-2"><strong>Saatlik Maaş:</strong> {{ number_format($result['monthly_salary'], 2) }} ₺ ÷ 225 = {{ number_format($result['hourly_salary_rate'], 2) }} ₺/saat</p>
+                    <p class="mb-0"><strong>Eksik Mesai Kesintisi:</strong> {{ number_format($result['hourly_salary_rate'], 2) }} ₺ × {{ number_format($result['missing_hours'], 1) }} saat = {{ number_format($result['calculated_missing_deduction'], 2) }} ₺</p>
                     @endif
                 </div>
             </div>
@@ -205,6 +255,49 @@ document.addEventListener('DOMContentLoaded', function() {
             endDateInput.value = this.value;
         }
     });
+
+    // Geç gelme kesintisi önizleme
+    const lateHoursInput = document.getElementById('late_hours');
+    const lateDeductionPreview = document.getElementById('lateDeductionPreview');
+    const lateDeductionAmount = document.getElementById('lateDeductionAmount');
+    const employeeSelect = document.getElementById('employee_id');
+    
+    // Saatlik maaş hesaplama için contract bilgisi gerekli
+    // Bu yüzden sadece sayısal değer girildiğinde önizleme gösterilemez
+    // Ancak form submit edildiğinde hesaplama yapılacak
+    
+    // Eğer result varsa ve hourly_salary_rate varsa, önizleme göster
+    @if(isset($result) && isset($result['hourly_salary_rate']))
+    const hourlyRate = {{ $result['hourly_salary_rate'] }};
+    const missingHoursInput = document.getElementById('missing_hours');
+    const missingDeductionPreview = document.getElementById('missingDeductionPreview');
+    const missingDeductionAmount = document.getElementById('missingDeductionAmount');
+    
+    function updateLateDeductionPreview() {
+        const lateHours = parseFloat(lateHoursInput.value) || 0;
+        if (lateHours > 0) {
+            const deduction = hourlyRate * lateHours;
+            lateDeductionAmount.textContent = deduction.toFixed(2);
+            lateDeductionPreview.style.display = 'block';
+        } else {
+            lateDeductionPreview.style.display = 'none';
+        }
+    }
+    
+    function updateMissingDeductionPreview() {
+        const missingHours = parseFloat(missingHoursInput.value) || 0;
+        if (missingHours > 0) {
+            const deduction = hourlyRate * missingHours;
+            missingDeductionAmount.textContent = deduction.toFixed(2);
+            missingDeductionPreview.style.display = 'block';
+        } else {
+            missingDeductionPreview.style.display = 'none';
+        }
+    }
+    
+    lateHoursInput.addEventListener('input', updateLateDeductionPreview);
+    missingHoursInput.addEventListener('input', updateMissingDeductionPreview);
+    @endif
 });
 </script>
 @endsection
