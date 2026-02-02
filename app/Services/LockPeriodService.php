@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @deprecated This service is deprecated. Use App\Domain\Accounting\Services\PeriodService instead.
+ * This class is kept for backward compatibility during migration only.
+ */
 class LockPeriodService
 {
     /**

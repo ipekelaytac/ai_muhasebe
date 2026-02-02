@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AllocatePaymentRequest;
-use App\Models\Payment;
-use App\Models\PaymentAllocation;
-use App\Services\AllocatePaymentService;
+use App\Domain\Accounting\Models\Payment;
+use App\Domain\Accounting\Models\PaymentAllocation;
+use App\Domain\Accounting\Services\AllocationService;
 use Illuminate\Http\JsonResponse;
 
 class PaymentAllocationController extends Controller
 {
-    protected $allocatePaymentService;
+    protected AllocationService $allocationService;
 
-    public function __construct(AllocatePaymentService $allocatePaymentService)
+    public function __construct(AllocationService $allocationService)
     {
-        $this->allocatePaymentService = $allocatePaymentService;
+        $this->allocationService = $allocationService;
     }
 
     /**
@@ -24,7 +24,14 @@ class PaymentAllocationController extends Controller
     public function store(AllocatePaymentRequest $request, Payment $payment): JsonResponse
     {
         try {
-            $allocations = $this->allocatePaymentService->allocate(
+            // Check period lock
+            if ($payment->isInLockedPeriod()) {
+                return response()->json([
+                    'message' => 'Bu ödeme kilitli bir dönemde. Dağıtım yapılamaz.'
+                ], 422);
+            }
+
+            $allocations = $this->allocationService->allocate(
                 $payment,
                 $request->validated()['allocations']
             );
@@ -52,9 +59,16 @@ class PaymentAllocationController extends Controller
                 ], 422);
             }
 
-            $this->allocatePaymentService->removeAllocation($allocation);
+            // Check period lock
+            if ($payment->isInLockedPeriod()) {
+                return response()->json([
+                    'message' => 'Bu ödeme kilitli bir dönemde. Dağıtım iptal edilemez.'
+                ], 422);
+            }
 
-            return response()->json(['message' => 'Allocation removed successfully']);
+            $this->allocationService->cancelAllocation($allocation);
+
+            return response()->json(['message' => 'Allocation cancelled successfully']);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()

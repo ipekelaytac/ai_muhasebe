@@ -8,15 +8,64 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        body {
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
             overflow-x: hidden;
         }
         .sidebar {
-            min-height: 100vh;
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: 250px;
+            flex-shrink: 0;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            flex-shrink: 0;
+        }
+        .sidebar-nav {
+            flex: 1 1 auto;
             overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+        }
+        .sidebar-nav::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        .sidebar-footer {
+            flex-shrink: 0;
+        }
+        .page-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            padding: 1rem 1.5rem;
+            margin-top: auto;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+        .page-footer a {
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .page-footer a:hover {
+            text-decoration: underline;
         }
         @media (max-width: 991.98px) {
             .sidebar {
@@ -26,6 +75,8 @@
                 transition: transform 0.3s ease;
                 height: 100vh;
                 width: 280px !important;
+                left: 0;
+                top: 0;
             }
             .sidebar.show {
                 transform: translateX(0);
@@ -42,6 +93,9 @@
             }
             .sidebar-backdrop.show {
                 display: block;
+            }
+            .flex-grow-1 {
+                margin-left: 0 !important;
             }
             main {
                 padding: 1rem !important;
@@ -76,14 +130,14 @@
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="d-flex">
+<body class="bg-light" style="overflow-x: hidden;">
+    <div class="d-flex" style="min-height: 100vh;">
         @include('partials.sidebar')
         
-        <div class="flex-grow-1 d-flex flex-column">
+        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0; margin-left: 250px;">
             @include('partials.topbar')
             
-            <main class="flex-grow-1 p-3 p-md-4">
+            <main class="flex-grow-1 p-3 p-md-4" style="overflow-x: auto; overflow-y: auto;">
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="bi bi-check-circle me-2"></i>
@@ -115,6 +169,15 @@
 
                 @yield('content')
             </main>
+            
+            <footer class="page-footer">
+                <div class="container-fluid">
+                    <p class="mb-0">
+                        &copy; {{ date('Y') }} Muhasebe Sistemi. 
+                        <a href="https://aytacipekel.com" target="_blank" rel="noopener noreferrer">aytacipekel.com</a>
+                    </p>
+                </div>
+            </footer>
         </div>
     </div>
 

@@ -603,22 +603,39 @@ class ReportService
     
     /**
      * Get top parties by volume
+     * 
+     * @param int $companyId
+     * @param string $direction - 'receivable' or 'payable'
+     * @param int $limit
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @param string|null $partyType - Filter by party type: 'customer', 'supplier', 'employee', or null for all
      */
     public function getTopParties(
         int $companyId,
         string $direction,
         int $limit = 10,
         ?string $startDate = null,
-        ?string $endDate = null
+        ?string $endDate = null,
+        ?string $partyType = null
     ): array {
         $startDate = $startDate ? Carbon::parse($startDate) : Carbon::now()->subYear();
         $endDate = $endDate ? Carbon::parse($endDate) : Carbon::now();
         
-        $results = Document::with('party')
+        $query = Document::with('party')
             ->where('company_id', $companyId)
             ->where('direction', $direction)
             ->whereNotIn('status', [DocumentStatus::CANCELLED, DocumentStatus::REVERSED])
-            ->whereBetween('document_date', [$startDate, $endDate])
+            ->whereBetween('document_date', [$startDate, $endDate]);
+        
+        // Filter by party type if provided
+        if ($partyType && $partyType !== 'all') {
+            $query->whereHas('party', function ($q) use ($partyType) {
+                $q->where('type', $partyType);
+            });
+        }
+        
+        $results = $query
             ->selectRaw('party_id, SUM(total_amount) as total_amount, COUNT(*) as document_count')
             ->groupBy('party_id')
             ->orderByDesc('total_amount')

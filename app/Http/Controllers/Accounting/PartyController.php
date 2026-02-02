@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePartyRequest;
-use App\Models\Party;
+use App\Domain\Accounting\Models\Party;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 

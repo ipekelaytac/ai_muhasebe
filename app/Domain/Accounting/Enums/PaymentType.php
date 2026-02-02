@@ -16,6 +16,7 @@ class PaymentType
     public const CHEQUE_IN = 'cheque_in';
     public const CHEQUE_OUT = 'cheque_out';
     public const TRANSFER = 'transfer';
+    public const INTERNAL_OFFSET = 'internal_offset'; // Internal settlement (no cash movement)
     
     public const ALL = [
         self::CASH_IN,
@@ -27,6 +28,7 @@ class PaymentType
         self::CHEQUE_IN,
         self::CHEQUE_OUT,
         self::TRANSFER,
+        self::INTERNAL_OFFSET,
     ];
     
     public const IN_TYPES = [
@@ -59,6 +61,9 @@ class PaymentType
      */
     public static function getDirection(string $type): string
     {
+        if ($type === self::INTERNAL_OFFSET) {
+            return 'internal';
+        }
         return in_array($type, self::IN_TYPES) ? 'in' : 'out';
     }
     
@@ -77,7 +82,16 @@ class PaymentType
             self::CHEQUE_IN => 'Çek Tahsilat',
             self::CHEQUE_OUT => 'Çek Ödeme',
             self::TRANSFER => 'Virman',
+            self::INTERNAL_OFFSET => 'İç Mahsup',
             default => $type,
         };
+    }
+    
+    /**
+     * Check if payment type requires cashbox/bank account
+     */
+    public static function requiresAccount(string $type): bool
+    {
+        return $type !== self::INTERNAL_OFFSET;
     }
 }

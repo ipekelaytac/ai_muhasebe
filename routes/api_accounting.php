@@ -97,7 +97,8 @@ Route::prefix('accounting')->middleware(['auth:sanctum'])->group(function () {
         Route::get('/cashflow-forecast', [ReportController::class, 'cashflowForecast']);
         Route::get('/party-statement/{partyId}', [ReportController::class, 'partyStatement']);
         Route::get('/monthly-pnl', [ReportController::class, 'monthlyPnL']);
-        Route::get('/top-suppliers', [ReportController::class, 'topSuppliers']);
-        Route::get('/top-customers', [ReportController::class, 'topCustomers']);
+        Route::get('/top-parties', [ReportController::class, 'topParties']); // New unified endpoint
+        Route::get('/top-suppliers', [ReportController::class, 'topSuppliers']); // Kept for backward compatibility
+        Route::get('/top-customers', [ReportController::class, 'topCustomers']); // Kept for backward compatibility, redirects to topParties
     });
 });

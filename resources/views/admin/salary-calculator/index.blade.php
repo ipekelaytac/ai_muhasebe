@@ -45,6 +45,17 @@
                                 required class="form-control">
                         </div>
                     </div>
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <label for="overtime_hours" class="form-label">
+                                <i class="bi bi-clock-history me-1"></i>Mesai Saati
+                            </label>
+                            <input type="number" name="overtime_hours" id="overtime_hours" 
+                                value="{{ old('overtime_hours', isset($result) ? $result['overtime_hours'] : '') }}" 
+                                step="0.5" min="0" class="form-control" placeholder="0">
+                            <small class="text-muted">Saat cinsinden mesai süresi (örn: 2.5)</small>
+                        </div>
+                    </div>
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-calculator me-2"></i>Hesapla
@@ -116,6 +127,15 @@
                                 <td class="text-end fw-bold text-info">{{ number_format($result['calculated_meal_allowance'], 2) }} ₺</td>
                             </tr>
                             @endif
+                            @if($result['overtime_hours'] > 0)
+                            <tr>
+                                <td class="fw-bold">Mesai Ücreti</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end">{{ number_format($result['hourly_overtime_rate'], 2) }} ₺/saat</td>
+                                <td class="text-end">{{ number_format($result['overtime_hours'], 1) }} saat</td>
+                                <td class="text-end fw-bold text-success">{{ number_format($result['calculated_overtime'], 2) }} ₺</td>
+                            </tr>
+                            @endif
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
@@ -132,7 +152,11 @@
                     <p class="mb-2"><strong>Hesaplanan Maaş:</strong> {{ number_format($result['daily_salary'], 2) }} ₺ × {{ $result['days'] }} gün = {{ number_format($result['calculated_amount'], 2) }} ₺</p>
                     @if($result['monthly_meal_allowance'] > 0)
                     <p class="mb-2"><strong>Günlük Yemek Yardımı:</strong> {{ number_format($result['monthly_meal_allowance'], 2) }} ₺ ÷ 30 = {{ number_format($result['daily_meal_allowance'], 2) }} ₺</p>
-                    <p class="mb-0"><strong>Hesaplanan Yemek Yardımı:</strong> {{ number_format($result['daily_meal_allowance'], 2) }} ₺ × {{ $result['days'] }} gün = {{ number_format($result['calculated_meal_allowance'], 2) }} ₺</p>
+                    <p class="mb-2"><strong>Hesaplanan Yemek Yardımı:</strong> {{ number_format($result['daily_meal_allowance'], 2) }} ₺ × {{ $result['days'] }} gün = {{ number_format($result['calculated_meal_allowance'], 2) }} ₺</p>
+                    @endif
+                    @if($result['overtime_hours'] > 0)
+                    <p class="mb-2"><strong>Saatlik Mesai Ücreti:</strong> ({{ number_format($result['monthly_salary'], 2) }} ₺ ÷ 225) × 1.5 = {{ number_format($result['hourly_overtime_rate'], 2) }} ₺/saat</p>
+                    <p class="mb-0"><strong>Hesaplanan Mesai Ücreti:</strong> {{ number_format($result['hourly_overtime_rate'], 2) }} ₺ × {{ number_format($result['overtime_hours'], 1) }} saat = {{ number_format($result['calculated_overtime'], 2) }} ₺</p>
                     @endif
                 </div>
             </div>

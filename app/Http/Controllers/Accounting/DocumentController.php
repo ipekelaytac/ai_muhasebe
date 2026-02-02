@@ -4,23 +4,18 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDocumentRequest;
-use App\Models\Document;
-use App\Services\CreateObligationService;
-use App\Services\ReverseDocumentService;
+use App\Domain\Accounting\Models\Document;
+use App\Domain\Accounting\Services\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class DocumentController extends Controller
 {
-    protected $createObligationService;
-    protected $reverseDocumentService;
+    protected DocumentService $documentService;
 
-    public function __construct(
-        CreateObligationService $createObligationService,
-        ReverseDocumentService $reverseDocumentService
-    ) {
-        $this->createObligationService = $createObligationService;
-        $this->reverseDocumentService = $reverseDocumentService;
+    public function __construct(DocumentService $documentService)
+    {
+        $this->documentService = $documentService;
     }
 
     /**
@@ -69,7 +64,7 @@ class DocumentController extends Controller
     public function store(StoreDocumentRequest $request): JsonResponse
     {
         try {
-            $document = $this->createObligationService->create($request->validated());
+            $document = $this->documentService->createDocument($request->validated());
 
             return response()->json($document->load(['party', 'category', 'lines']), 201);
         } catch (\Exception $e) {
@@ -103,21 +98,23 @@ class DocumentController extends Controller
     public function update(StoreDocumentRequest $request, Document $document): JsonResponse
     {
         try {
-            if ($document->isLocked()) {
+            // Check period lock
+            if ($document->isInLockedPeriod()) {
                 return response()->json([
-                    'message' => 'Cannot update document in locked period'
+                    'message' => 'Bu belge kilitli bir dönemde. Düzenleme yapılamaz. Ters kayıt kullanın.'
                 ], 422);
             }
 
-            if ($document->status !== 'draft') {
+            // Check if document can be modified
+            if (!$document->canModify()) {
                 return response()->json([
-                    'message' => 'Can only update draft documents'
+                    'message' => 'Bu belge değiştirilemez. Ödemesi olan belgeler değiştirilemez.'
                 ], 422);
             }
 
-            $document->update($request->validated());
+            $document = $this->documentService->updateDocument($document, $request->validated());
 
-            return response()->json($document->fresh()->load(['party', 'category', 'lines']));
+            return response()->json($document->load(['party', 'category', 'lines']));
         } catch (\Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()
@@ -131,7 +128,7 @@ class DocumentController extends Controller
     public function reverse(Request $request, Document $document): JsonResponse
     {
         try {
-            $reversalDocument = $this->reverseDocumentService->reverse(
+            $reversalDocument = $this->documentService->reverseDocument(
                 $document,
                 $request->get('reason')
             );
@@ -153,23 +150,17 @@ class DocumentController extends Controller
     public function destroy(Document $document): JsonResponse
     {
         try {
-            if ($document->isLocked()) {
+            // Check period lock
+            if ($document->isInLockedPeriod()) {
                 return response()->json([
-                    'message' => 'Cannot delete document in locked period'
+                    'message' => 'Bu belge kilitli bir dönemde. Silinemez. İptal edin veya ters kayıt kullanın.'
                 ], 422);
             }
 
-            if ($document->allocations()->count() > 0) {
-                return response()->json([
-                    'message' => 'Cannot delete document with allocations'
-                ], 422);
-            }
+            // Use service to cancel (soft delete)
+            $this->documentService->cancelDocument($document, 'API üzerinden silindi');
 
-            $document->status = 'canceled';
-            $document->save();
-            $document->delete();
-
-            return response()->json(['message' => 'Document deleted successfully']);
+            return response()->json(['message' => 'Document cancelled successfully']);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()

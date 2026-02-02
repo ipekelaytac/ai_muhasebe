@@ -86,10 +86,6 @@
                     <i class="fas fa-money-check-alt w-5"></i>
                     <span>Bordro</span>
                 </a>
-                <a href="{{ route('admin.finance.transactions.index') }}" class="sidebar-link flex items-center space-x-3 px-4 py-3 mb-2 rounded-lg {{ request()->routeIs('admin.finance.*') ? 'active' : 'hover:bg-gray-700' }}">
-                    <i class="fas fa-chart-line w-5"></i>
-                    <span>Finans</span>
-                </a>
             </nav>
             <div class="absolute bottom-0 w-full p-4 border-t border-gray-700">
                 @auth

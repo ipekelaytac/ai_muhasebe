@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePaymentRequest;
-use App\Models\Payment;
-use App\Services\RecordPaymentService;
+use App\Domain\Accounting\Models\Payment;
+use App\Domain\Accounting\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class PaymentController extends Controller
 {
-    protected $recordPaymentService;
+    protected PaymentService $paymentService;
 
-    public function __construct(RecordPaymentService $recordPaymentService)
+    public function __construct(PaymentService $paymentService)
     {
-        $this->recordPaymentService = $recordPaymentService;
+        $this->paymentService = $paymentService;
     }
 
     /**
@@ -77,13 +77,12 @@ class PaymentController extends Controller
     public function store(StorePaymentRequest $request): JsonResponse
     {
         try {
-            $payment = $this->recordPaymentService->create($request->validated());
+            $payment = $this->paymentService->createPayment($request->validated());
 
             return response()->json($payment->load([
                 'party',
                 'cashbox',
-                'bankAccount',
-                'accountingPeriod'
+                'bankAccount'
             ]), 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -118,25 +117,26 @@ class PaymentController extends Controller
     public function update(StorePaymentRequest $request, Payment $payment): JsonResponse
     {
         try {
-            if ($payment->isLocked()) {
+            // Check period lock
+            if ($payment->isInLockedPeriod()) {
                 return response()->json([
-                    'message' => 'Cannot update payment in locked period'
+                    'message' => 'Bu ödeme kilitli bir dönemde. Düzenleme yapılamaz. Ters kayıt kullanın.'
                 ], 422);
             }
 
-            if ($payment->status !== 'draft') {
+            // Check if payment can be modified
+            if (!$payment->canModify()) {
                 return response()->json([
-                    'message' => 'Can only update draft payments'
+                    'message' => 'Bu ödeme değiştirilemez. Dağıtımı olan ödemeler değiştirilemez.'
                 ], 422);
             }
 
-            $payment->update($request->validated());
+            $payment = $this->paymentService->updatePayment($payment, $request->validated());
 
-            return response()->json($payment->fresh()->load([
+            return response()->json($payment->load([
                 'party',
                 'cashbox',
-                'bankAccount',
-                'accountingPeriod'
+                'bankAccount'
             ]));
         } catch (\Exception $e) {
             return response()->json([
@@ -151,23 +151,17 @@ class PaymentController extends Controller
     public function destroy(Payment $payment): JsonResponse
     {
         try {
-            if ($payment->isLocked()) {
+            // Check period lock
+            if ($payment->isInLockedPeriod()) {
                 return response()->json([
-                    'message' => 'Cannot delete payment in locked period'
+                    'message' => 'Bu ödeme kilitli bir dönemde. Silinemez. İptal edin veya ters kayıt kullanın.'
                 ], 422);
             }
 
-            if ($payment->allocations()->count() > 0) {
-                return response()->json([
-                    'message' => 'Cannot delete payment with allocations'
-                ], 422);
-            }
+            // Use service to cancel (soft delete)
+            $this->paymentService->cancelPayment($payment, 'API üzerinden silindi');
 
-            $payment->status = 'canceled';
-            $payment->save();
-            $payment->delete();
-
-            return response()->json(['message' => 'Payment deleted successfully']);
+            return response()->json(['message' => 'Payment cancelled successfully']);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()

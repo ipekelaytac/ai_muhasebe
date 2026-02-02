@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
+/**
+ * @deprecated This model is deprecated. Use App\Domain\Accounting\Models\AccountingPeriod instead.
+ * This class is kept for backward compatibility during migration only.
+ * 
+ * For new code, always use: App\Domain\Accounting\Models\AccountingPeriod
+ */
 class AccountingPeriod extends Model
 {
     use HasFactory;

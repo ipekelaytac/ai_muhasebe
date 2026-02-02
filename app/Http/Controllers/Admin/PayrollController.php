@@ -12,12 +12,12 @@ use App\Models\PayrollDeduction;
 use App\Models\PayrollDeductionType;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
-use App\Models\Advance;
-use App\Models\AdvanceSettlement;
+// Legacy models removed - Advance and FinanceTransaction tables dropped
+// TODO: Migrate advance functionality to use documents (type: advance_given/advance_received)
+// TODO: Migrate finance transactions to use documents
 use App\Models\Company;
 use App\Models\Branch;
 use App\Models\FinanceCategory;
-use App\Models\FinanceTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -174,11 +174,9 @@ class PayrollController extends Controller
                 })->whereNull('payroll_installment_id')
                   ->sum('amount');
 
-                $advancesDeducted = AdvanceSettlement::whereHas('payrollItem', function ($q) use ($period, $employee) {
-                    $q->where('payroll_period_id', $period->id)
-                      ->where('employee_id', $employee->id);
-                })->whereNull('payroll_installment_id')
-                  ->sum('settled_amount');
+                // Legacy advance settlements removed - table dropped
+                // TODO: Migrate to use payment allocations to advance documents
+                $advancesDeducted = 0;
 
                 // Calculate overtime total for the period
                 $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
@@ -251,11 +249,12 @@ class PayrollController extends Controller
             'payrollPeriod.branch',
             'installments.payments',
             'installments.deductions.deductionType',
-            'installments.advanceSettlements.advance',
+            // Legacy advance settlements removed
+            // 'installments.advanceSettlements.advance',
             'deductions.deductionType',
             'deductions.installment',
-            'advanceSettlements.advance',
-            'advanceSettlements.installment',
+            // 'advanceSettlements.advance',
+            // 'advanceSettlements.installment',
             'payments.allocations.installment'
         ]);
         
@@ -273,7 +272,8 @@ class PayrollController extends Controller
             'payrollPeriod', 
             'installments.paymentAllocations.payment',
             'installments.deductions.deductionType',
-            'installments.advanceSettlements.advance',
+            // Legacy advance settlements removed
+            // 'installments.advanceSettlements.advance',
             'payments' => function ($q) {
                 $q->with(['allocations' => function ($q2) {
                     $q2->with('installment');
@@ -281,8 +281,8 @@ class PayrollController extends Controller
             },
             'deductions.deductionType',
             'deductions.installment',
-            'advanceSettlements.advance',
-            'advanceSettlements.installment',
+            // 'advanceSettlements.advance',
+            // 'advanceSettlements.installment',
         ]);
         
         // Get overtime records for this period
@@ -299,14 +299,9 @@ class PayrollController extends Controller
             ->where('is_active', 1)
             ->get();
 
-        // Get open advances for this employee
-        $openAdvances = Advance::where('employee_id', $item->employee_id)
-            ->where('status', 1)
-            ->with('settlements')
-            ->get()
-            ->filter(function ($advance) {
-                return $advance->remaining_amount > 0;
-            });
+        // TODO: Migrate to use documents with type advance_given
+        // Legacy Advance model removed - table dropped
+        $openAdvances = collect([]);
 
         // Get open debts for this employee
         $openDebts = \App\Models\EmployeeDebt::where('employee_id', $item->employee_id)
@@ -401,11 +396,9 @@ class PayrollController extends Controller
             })->whereNull('payroll_installment_id')
               ->sum('amount');
 
-            $advancesDeducted = AdvanceSettlement::whereHas('payrollItem', function ($q) use ($period, $employee) {
-                $q->where('payroll_period_id', $period->id)
-                  ->where('employee_id', $employee->id);
-            })->whereNull('payroll_installment_id')
-              ->sum('settled_amount');
+            // Legacy advance settlements removed - table dropped
+            // TODO: Migrate to use payment allocations to advance documents
+            $advancesDeducted = 0;
 
             // Calculate overtime total for the period
             $overtimeTotal = \App\Models\Overtime::where('employee_id', $employee->id)
@@ -550,26 +543,8 @@ class PayrollController extends Controller
                 ]);
             }
 
-            // Create finance transaction
-            $category = FinanceCategory::where('company_id', $item->payrollPeriod->company_id)
-                ->where('type', 'expense')
-                ->where('name', 'Maaş Ödemesi')
-                ->first();
-            
-            if ($category) {
-                FinanceTransaction::create([
-                    'company_id' => $item->payrollPeriod->company_id,
-                    'branch_id' => $item->payrollPeriod->branch_id,
-                    'type' => 'expense',
-                    'category_id' => $category->id,
-                    'transaction_date' => $request->payment_date,
-                    'description' => $item->employee->full_name . ' - Maaş Ödemesi',
-                    'amount' => $request->amount,
-                    'related_table' => 'payroll_payments',
-                    'related_id' => $payment->id,
-                    'created_by' => $user->id,
-                ]);
-            }
+            // TODO: Migrate to create document with type payroll_due instead of FinanceTransaction
+            // Legacy FinanceTransaction model removed - table dropped
 
             DB::commit();
             return redirect()->route('admin.payroll.item', $item)
@@ -625,125 +600,24 @@ class PayrollController extends Controller
             ->with('success', 'Kesinti başarıyla eklendi.');
     }
 
+    /**
+     * @deprecated Legacy advance functionality removed
+     * TODO: Migrate to use documents with type advance_given + payments
+     * This method is disabled - advance tables dropped
+     */
     public function addAdvance(Request $request)
     {
-        $user = Auth::user();
-        $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'advance_date' => 'required|date',
-            'amount' => 'required|numeric|min:0.01',
-            'method' => 'required|in:cash,bank,other',
-            'note' => 'nullable|string',
-        ]);
-
-        $employee = Employee::findOrFail($request->employee_id);
-        if ($user->company_id && $employee->company_id != $user->company_id) {
-            abort(403);
-        }
-
-        DB::beginTransaction();
-        try {
-            $advance = Advance::create([
-                'company_id' => $employee->company_id,
-                'branch_id' => $employee->branch_id,
-                'employee_id' => $employee->id,
-                'advance_date' => $request->advance_date,
-                'amount' => $request->amount,
-                'method' => $request->method,
-                'note' => $request->note,
-                'status' => 1,
-            ]);
-
-            // Create finance transaction
-            $category = FinanceCategory::where('company_id', $employee->company_id)
-                ->where('type', 'expense')
-                ->where('name', 'Avans')
-                ->first();
-            
-            if ($category) {
-                FinanceTransaction::create([
-                    'company_id' => $employee->company_id,
-                    'branch_id' => $employee->branch_id,
-                    'type' => 'expense',
-                    'category_id' => $category->id,
-                    'transaction_date' => $request->advance_date,
-                    'description' => $employee->full_name . ' - Avans',
-                    'amount' => $request->amount,
-                    'employee_id' => $employee->id,
-                    'related_table' => 'advances',
-                    'related_id' => $advance->id,
-                    'created_by' => $user->id,
-                ]);
-            }
-
-            DB::commit();
-            return redirect()->route('admin.employees.index')
-                ->with('success', 'Avans başarıyla oluşturuldu.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
+        return back()->withErrors(['error' => 'Avans özelliği yeni muhasebe sistemine taşınmıştır. Lütfen Muhasebe > Tahakkuklar menüsünden avans belgesi oluşturun.']);
     }
 
+    /**
+     * @deprecated Legacy advance settlement functionality removed
+     * TODO: Migrate to use payment allocations to advance documents
+     * This method is disabled - advance_settlements table dropped
+     */
     public function settleAdvance(Request $request, PayrollItem $item)
     {
-        $user = Auth::user();
-        if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
-            abort(403);
-        }
-
-        $request->validate([
-            'advance_id' => 'required|exists:advances,id',
-            'settled_amount' => 'required|numeric|min:0.01',
-            'settled_date' => 'required|date',
-            'installment_id' => 'nullable|exists:payroll_installments,id',
-        ]);
-
-        $advance = Advance::findOrFail($request->advance_id);
-        if ($advance->employee_id != $item->employee_id) {
-            return back()->withErrors(['advance_id' => 'Avans bu çalışana ait değil.']);
-        }
-
-        $remaining = $advance->remaining_amount;
-        if ($request->settled_amount > $remaining) {
-            return back()->withErrors(['settled_amount' => 'Kalan tutardan fazla ödeme yapılamaz.']);
-        }
-
-        if ($request->installment_id) {
-            $installment = PayrollInstallment::findOrFail($request->installment_id);
-            if ($installment->payroll_item_id != $item->id) {
-                return back()->withErrors(['installment_id' => 'Geçersiz taksit.']);
-            }
-        }
-
-        AdvanceSettlement::create([
-            'advance_id' => $advance->id,
-            'payroll_item_id' => $item->id,
-            'payroll_installment_id' => $request->installment_id,
-            'settled_amount' => $request->settled_amount,
-            'settled_date' => $request->settled_date,
-            'created_by' => $user->id,
-        ]);
-
-        // Update advance status if fully settled
-        if ($advance->remaining_amount <= 0) {
-            $advance->status = 0;
-            $advance->save();
-        }
-
-        // Recalculate item totals
-        $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
-        $item->net_payable = $item->base_net_salary 
-            + $item->meal_allowance 
-            + ($item->overtime_total ?? 0)
-            + $item->bonus_total 
-            - $item->deduction_total 
-            - $item->advances_deducted_total
-            - $item->debtPayments()->sum('amount');
-        $item->save();
-
-        return redirect()->route('admin.payroll.item', $item)
-            ->with('success', 'Avans mahsuplaşması başarıyla eklendi.');
+        return back()->withErrors(['error' => 'Avans mahsuplaşma özelliği yeni muhasebe sistemine taşınmıştır. Lütfen Muhasebe > Ödeme/Tahsilat menüsünden ödeme yapıp avans belgesine dağıtın.']);
     }
 
     public function addDebtPayment(Request $request, PayrollItem $item)
@@ -822,7 +696,9 @@ class PayrollController extends Controller
             }
 
             // Recalculate item totals
-            $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
+            // Legacy advance settlements removed - table dropped
+            // TODO: Migrate to use payment allocations to advance documents
+            $item->advances_deducted_total = 0; // $item->advanceSettlements()->sum('settled_amount');
             $item->net_payable = $item->base_net_salary 
                 + $item->meal_allowance 
                 + ($item->overtime_total ?? 0)
@@ -902,44 +778,18 @@ class PayrollController extends Controller
         }
     }
 
-    public function deleteAdvanceSettlement(PayrollItem $item, AdvanceSettlement $settlement)
+    /**
+     * @deprecated Legacy advance settlement functionality removed
+     * TODO: Migrate to use payment allocations to advance documents
+     */
+    public function deleteAdvanceSettlement(PayrollItem $item, $settlement)
     {
         $user = Auth::user();
         if ($user->company_id && $item->payrollPeriod->company_id != $user->company_id) {
             abort(403);
         }
 
-        if ($settlement->payroll_item_id != $item->id) {
-            abort(404);
-        }
-
-        DB::beginTransaction();
-        try {
-            $advance = $settlement->advance;
-            $settlement->delete();
-
-            // Update advance status if needed
-            if ($advance->remaining_amount > 0 && $advance->status == 0) {
-                $advance->status = 1;
-                $advance->save();
-            }
-
-            // Recalculate item totals
-            $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
-            $item->net_payable = $item->base_net_salary 
-                + $item->meal_allowance 
-                + $item->bonus_total 
-                - $item->deduction_total 
-                - $item->advances_deducted_total;
-            $item->save();
-
-            DB::commit();
-            return redirect()->route('admin.payroll.item', $item)
-                ->with('success', 'Avans mahsuplaşması başarıyla silindi.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Avans mahsuplaşması silinirken hata oluştu: ' . $e->getMessage()]);
-        }
+        return back()->withErrors(['error' => 'Avans mahsuplaşma özelliği yeni muhasebe sistemine taşınmıştır. Lütfen Muhasebe > Ödeme/Tahsilat menüsünden dağıtımı iptal edin.']);
     }
 }
 

@@ -216,28 +216,56 @@ class ReportController extends Controller
     }
     
     /**
-     * Get top customers by volume
+     * Get top parties by volume (generic endpoint)
+     * 
+     * @param string $type - 'customer', 'supplier', 'employee', or 'all'
      */
-    public function topCustomers(Request $request): JsonResponse
+    public function topParties(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
+            'type' => 'nullable|string|in:customer,supplier,employee,all',
+            'direction' => 'nullable|string|in:receivable,payable',
             'limit' => 'nullable|integer|min:1|max:50',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
         ]);
         
+        // Determine direction from type if not provided
+        $direction = $validated['direction'] ?? null;
+        if (!$direction && isset($validated['type'])) {
+            $direction = match($validated['type']) {
+                'customer' => 'receivable',
+                'supplier' => 'payable',
+                default => 'receivable', // Default for employee/all
+            };
+        }
+        $direction = $direction ?? 'receivable'; // Final fallback
+        
         $data = $this->reportService->getTopParties(
             $validated['company_id'],
-            'receivable',
+            $direction,
             $validated['limit'] ?? 10,
             $validated['start_date'] ?? null,
-            $validated['end_date'] ?? null
+            $validated['end_date'] ?? null,
+            $validated['type'] ?? null // Filter by party type if provided
         );
         
         return response()->json([
             'success' => true,
             'data' => $data,
         ]);
+    }
+    
+    /**
+     * Get top customers by volume
+     * @deprecated Use topParties with type=customer instead
+     * Kept for backward compatibility
+     */
+    public function topCustomers(Request $request): JsonResponse
+    {
+        // Redirect to topParties with type=customer
+        $request->merge(['type' => 'customer', 'direction' => 'receivable']);
+        return $this->topParties($request);
     }
 }

@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\AccountingPeriod;
-use App\Services\LockPeriodService;
+use App\Domain\Accounting\Models\AccountingPeriod;
+use App\Domain\Accounting\Services\PeriodService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class AccountingPeriodController extends Controller
 {
-    protected $lockPeriodService;
+    protected PeriodService $periodService;
 
-    public function __construct(LockPeriodService $lockPeriodService)
+    public function __construct(PeriodService $periodService)
     {
-        $this->lockPeriodService = $lockPeriodService;
+        $this->periodService = $periodService;
     }
 
     /**
@@ -48,8 +48,10 @@ class AccountingPeriodController extends Controller
     public function lock(Request $request, AccountingPeriod $period): JsonResponse
     {
         try {
-            $lockedPeriod = $this->lockPeriodService->lock(
-                $period,
+            $lockedPeriod = $this->periodService->lockPeriod(
+                $period->company_id,
+                $period->year,
+                $period->month,
                 $request->get('notes')
             );
 
@@ -70,8 +72,10 @@ class AccountingPeriodController extends Controller
     public function unlock(Request $request, AccountingPeriod $period): JsonResponse
     {
         try {
-            $unlockedPeriod = $this->lockPeriodService->unlock(
-                $period,
+            $unlockedPeriod = $this->periodService->unlockPeriod(
+                $period->company_id,
+                $period->year,
+                $period->month,
                 $request->get('reason')
             );
 

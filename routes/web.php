@@ -8,17 +8,10 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EmployeeContractController;
 use App\Http\Controllers\Admin\PayrollController;
 use App\Http\Controllers\Admin\PayrollDeductionTypeController;
-use App\Http\Controllers\Admin\AdvanceController;
 use App\Http\Controllers\Admin\MealAllowanceController;
 use App\Http\Controllers\Admin\SalaryCalculatorController;
 use App\Http\Controllers\Admin\CostCalculatorController;
-use App\Http\Controllers\Admin\CustomerController;
-use App\Http\Controllers\Admin\CustomerTransactionController;
-use App\Http\Controllers\Admin\CheckController;
-use App\Http\Controllers\Admin\OvertimeController;
-use App\Http\Controllers\Admin\EmployeeDebtController;
 use App\Http\Controllers\Admin\FinanceCategoryController;
-use App\Http\Controllers\Admin\FinanceTransactionController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\ProfileController;
 
@@ -66,7 +59,7 @@ Route::middleware('auth')->group(function () {
         'update' => 'admin.contracts.update',
     ]);
     
-    // Payroll - DEPRECATED: Payment routes blocked, use Accounting API for payments
+    // Payroll
     Route::get('admin/payroll', [PayrollController::class, 'index'])->name('admin.payroll.index');
     Route::get('admin/payroll/create', [PayrollController::class, 'create'])->name('admin.payroll.create');
     Route::post('admin/payroll', [PayrollController::class, 'store'])->name('admin.payroll.store');
@@ -75,16 +68,16 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployeeForm'])->name('admin.payroll.add-employee-form');
     Route::post('admin/payroll/{period}/add-employee', [PayrollController::class, 'addEmployee'])->name('admin.payroll.add-employee');
     Route::get('admin/payroll/item/{item}', [PayrollController::class, 'showItem'])->name('admin.payroll.item');
-    // DEPRECATED: Payment routes - Use Accounting API instead
-    // Route::post('admin/payroll/item/{item}/payment', [PayrollController::class, 'addPayment'])->name('admin.payroll.add-payment');
-    // Route::delete('admin/payroll/item/{item}/payment/{payment}', [PayrollController::class, 'deletePayment'])->name('admin.payroll.delete-payment');
     Route::post('admin/payroll/item/{item}/deduction', [PayrollController::class, 'addDeduction'])->name('admin.payroll.add-deduction');
     Route::delete('admin/payroll/item/{item}/deduction/{deduction}', [PayrollController::class, 'deleteDeduction'])->name('admin.payroll.delete-deduction');
-    Route::post('admin/payroll/item/{item}/settle-advance', [PayrollController::class, 'settleAdvance'])->name('admin.payroll.settle-advance');
-    Route::delete('admin/payroll/item/{item}/advance-settlement/{settlement}', [PayrollController::class, 'deleteAdvanceSettlement'])->name('admin.payroll.delete-advance-settlement');
-    // DEPRECATED: Debt payment routes - Use Accounting API instead
-    // Route::post('admin/payroll/item/{item}/debt-payment', [PayrollController::class, 'addDebtPayment'])->name('admin.payroll.add-debt-payment');
-    // Route::delete('admin/payroll/item/{item}/debt-payment/{debtPayment}', [PayrollController::class, 'deleteDebtPayment'])->name('admin.payroll.delete-debt-payment');
+    // Legacy advance routes removed - advance tables dropped
+    // TODO: Migrate advance functionality to use accounting documents
+    // Route::post('admin/payroll/item/{item}/settle-advance', [PayrollController::class, 'settleAdvance'])->name('admin.payroll.settle-advance');
+    // Route::delete('admin/payroll/item/{item}/advance-settlement/{settlement}', [PayrollController::class, 'deleteAdvanceSettlement'])->name('admin.payroll.delete-advance-settlement');
+    Route::post('admin/payroll/item/{item}/payment', [PayrollController::class, 'addPayment'])->name('admin.payroll.add-payment');
+    Route::delete('admin/payroll/item/{item}/payment/{payment}', [PayrollController::class, 'deletePayment'])->name('admin.payroll.delete-payment');
+    Route::post('admin/payroll/item/{item}/debt-payment', [PayrollController::class, 'addDebtPayment'])->name('admin.payroll.add-debt-payment');
+    Route::delete('admin/payroll/item/{item}/debt-payment/{debtPayment}', [PayrollController::class, 'deleteDebtPayment'])->name('admin.payroll.delete-debt-payment');
     
     // Payroll Deduction Types
     Route::resource('admin/payroll/deduction-types', PayrollDeductionTypeController::class)->names([
@@ -95,16 +88,6 @@ Route::middleware('auth')->group(function () {
         'update' => 'admin.payroll.deduction-types.update',
         'destroy' => 'admin.payroll.deduction-types.destroy',
     ]);
-    
-    // Advances - DEPRECATED: Use Accounting API instead
-    // Route::resource('admin/advances', AdvanceController::class)->names([
-    //     'index' => 'admin.advances.index',
-    //     'create' => 'admin.advances.create',
-    //     'store' => 'admin.advances.store',
-    //     'edit' => 'admin.advances.edit',
-    //     'update' => 'admin.advances.update',
-    //     'destroy' => 'admin.advances.destroy',
-    // ]);
     
     // Meal Allowance
     Route::get('admin/meal-allowance', [MealAllowanceController::class, 'index'])->name('admin.meal-allowance.index');
@@ -118,56 +101,6 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/cost-calculator', [CostCalculatorController::class, 'index'])->name('admin.cost-calculator.index');
     Route::post('admin/cost-calculator/calculate', [CostCalculatorController::class, 'calculate'])->name('admin.cost-calculator.calculate');
     
-    // Customers
-    Route::resource('admin/customers', CustomerController::class)->names([
-        'index' => 'admin.customers.index',
-        'create' => 'admin.customers.create',
-        'store' => 'admin.customers.store',
-        'show' => 'admin.customers.show',
-        'edit' => 'admin.customers.edit',
-        'update' => 'admin.customers.update',
-        'destroy' => 'admin.customers.destroy',
-    ]);
-    
-    // Customer Transactions - DEPRECATED: Use Accounting API instead
-    // Route::get('admin/customers/{customer}/transactions/create', [CustomerTransactionController::class, 'create'])->name('admin.customers.transactions.create');
-    // Route::post('admin/customers/{customer}/transactions', [CustomerTransactionController::class, 'store'])->name('admin.customers.transactions.store');
-    // Route::get('admin/customers/{customer}/transactions/{transaction}/edit', [CustomerTransactionController::class, 'edit'])->name('admin.customers.transactions.edit');
-    // Route::put('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'update'])->name('admin.customers.transactions.update');
-    // Route::delete('admin/customers/{customer}/transactions/{transaction}', [CustomerTransactionController::class, 'destroy'])->name('admin.customers.transactions.destroy');
-    
-    // Checks
-    Route::resource('admin/checks', CheckController::class)->names([
-        'index' => 'admin.checks.index',
-        'create' => 'admin.checks.create',
-        'store' => 'admin.checks.store',
-        'show' => 'admin.checks.show',
-        'edit' => 'admin.checks.edit',
-        'update' => 'admin.checks.update',
-        'destroy' => 'admin.checks.destroy',
-    ]);
-    
-    // Overtimes - DEPRECATED: Use Accounting API instead
-    // Route::resource('admin/overtimes', OvertimeController::class)->names([
-    //     'index' => 'admin.overtimes.index',
-    //     'create' => 'admin.overtimes.create',
-    //     'store' => 'admin.overtimes.store',
-    //     'edit' => 'admin.overtimes.edit',
-    //     'update' => 'admin.overtimes.update',
-    //     'destroy' => 'admin.overtimes.destroy',
-    // ]);
-    
-    // Employee Debts - DEPRECATED: Use Accounting API instead
-    // Route::resource('admin/employee-debts', EmployeeDebtController::class)->names([
-    //     'index' => 'admin.employee-debts.index',
-    //     'create' => 'admin.employee-debts.create',
-    //     'store' => 'admin.employee-debts.store',
-    //     'show' => 'admin.employee-debts.show',
-    //     'edit' => 'admin.employee-debts.edit',
-    //     'update' => 'admin.employee-debts.update',
-    //     'destroy' => 'admin.employee-debts.destroy',
-    // ]);
-    
     // Finance Categories
     Route::resource('admin/finance/categories', FinanceCategoryController::class)->names([
         'index' => 'admin.finance.categories.index',
@@ -178,23 +111,94 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'admin.finance.categories.destroy',
     ]);
     
-    // Finance Transactions - DEPRECATED: Use Accounting API instead
-    // Route::resource('admin/finance/transactions', FinanceTransactionController::class)->names([
-    //     'index' => 'admin.finance.transactions.index',
-    //     'create' => 'admin.finance.transactions.create',
-    //     'store' => 'admin.finance.transactions.store',
-    //     'edit' => 'admin.finance.transactions.edit',
-    //     'update' => 'admin.finance.transactions.update',
-    //     'destroy' => 'admin.finance.transactions.destroy',
-    // ]);
-    // Route::get('admin/finance/reports', [FinanceTransactionController::class, 'reports'])->name('admin.finance.reports');
-    // Route::get('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'showAttachment'])
-    //     ->name('admin.finance.transactions.attachment.show');
-    // Route::delete('admin/finance/transactions/attachment/{attachment}', [FinanceTransactionController::class, 'destroyAttachment'])
-    //     ->name('admin.finance.transactions.attachment.destroy');
-    
     // Reports
     Route::get('admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');
+    
+    // Accounting Web UI Routes
+    Route::prefix('accounting')->name('accounting.')->group(function () {
+        // Parties (Cariler)
+        Route::get('parties', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'index'])->name('parties.index');
+        Route::get('parties/create', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'create'])->name('parties.create');
+        Route::post('parties', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'store'])->name('parties.store');
+        Route::get('parties/{party}', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'show'])->name('parties.show');
+        Route::get('parties/{party}/edit', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'edit'])->name('parties.edit');
+        Route::put('parties/{party}', [\App\Http\Controllers\Web\Accounting\PartyController::class, 'update'])->name('parties.update');
+        
+        // Documents (Tahakkuklar)
+        Route::get('documents', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'index'])->name('documents.index');
+        Route::get('documents/create', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'create'])->name('documents.create');
+        Route::post('documents', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'store'])->name('documents.store');
+        Route::get('documents/{document}', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'show'])->name('documents.show');
+        Route::get('documents/{document}/edit', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'edit'])->name('documents.edit');
+        Route::put('documents/{document}', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'update'])->name('documents.update');
+        Route::post('documents/{document}/reverse', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'reverse'])->name('documents.reverse');
+        Route::post('documents/{document}/cancel', [\App\Http\Controllers\Web\Accounting\DocumentController::class, 'cancel'])->name('documents.cancel');
+        
+        // Payments (Ödeme/Tahsilat)
+        Route::get('payments', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/create', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'create'])->name('payments.create');
+        Route::post('payments', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'store'])->name('payments.store');
+        Route::get('payments/{payment}', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'show'])->name('payments.show');
+        Route::get('payments/{payment}/edit', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'edit'])->name('payments.edit');
+        Route::put('payments/{payment}', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'update'])->name('payments.update');
+        Route::post('payments/{payment}/reverse', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'reverse'])->name('payments.reverse');
+        Route::post('payments/{payment}/cancel', [\App\Http\Controllers\Web\Accounting\PaymentController::class, 'cancel'])->name('payments.cancel');
+        
+        // Allocations (Dağıtım)
+        Route::get('payments/{payment}/allocate', [\App\Http\Controllers\Web\Accounting\AllocationController::class, 'create'])->name('allocations.create');
+        Route::post('payments/{payment}/allocate', [\App\Http\Controllers\Web\Accounting\AllocationController::class, 'store'])->name('allocations.store');
+        Route::post('allocations/{allocation}/cancel', [\App\Http\Controllers\Web\Accounting\AllocationController::class, 'cancel'])->name('allocations.cancel');
+        
+        // Cash & Banks (Kasa & Bankalar)
+        Route::get('cash', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'index'])->name('cash.index');
+        Route::get('cash/transfer', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'transferForm'])->name('cash.transfer');
+        Route::post('cash/transfer', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'transfer'])->name('cash.transfer.store');
+        
+        // Cashbox Management
+        Route::get('cash/cashbox/create', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'createCashbox'])->name('cash.cashbox.create');
+        Route::post('cash/cashbox', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'storeCashbox'])->name('cash.cashbox.store');
+        Route::get('cash/cashbox/{cashbox}/edit', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'editCashbox'])->name('cash.cashbox.edit');
+        Route::put('cash/cashbox/{cashbox}', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'updateCashbox'])->name('cash.cashbox.update');
+        
+        // Bank Account Management
+        Route::get('cash/bank/create', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'createBankAccount'])->name('cash.bank.create');
+        Route::post('cash/bank', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'storeBankAccount'])->name('cash.bank.store');
+        Route::get('cash/bank/{bankAccount}/edit', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'editBankAccount'])->name('cash.bank.edit');
+        Route::put('cash/bank/{bankAccount}', [\App\Http\Controllers\Web\Accounting\CashBankController::class, 'updateBankAccount'])->name('cash.bank.update');
+        
+        // Cheques (Çek/Senet)
+        Route::get('cheques', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'index'])->name('cheques.index');
+        Route::get('cheques/create', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'create'])->name('cheques.create');
+        Route::post('cheques', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'store'])->name('cheques.store');
+        Route::get('cheques/{cheque}', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'show'])->name('cheques.show');
+        Route::post('cheques/{cheque}/deposit', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'deposit'])->name('cheques.deposit');
+        Route::post('cheques/{cheque}/collect', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'collect'])->name('cheques.collect');
+        Route::post('cheques/{cheque}/bounce', [\App\Http\Controllers\Web\Accounting\ChequeController::class, 'bounce'])->name('cheques.bounce');
+        
+        // Reports (Raporlar)
+        Route::get('reports', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/cash-bank-balance', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'cashBankBalance'])->name('reports.cash-bank-balance');
+        Route::get('reports/receivables-aging', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'receivablesAging'])->name('reports.receivables-aging');
+        Route::get('reports/payables-aging', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'payablesAging'])->name('reports.payables-aging');
+        Route::get('reports/employee-dues-aging', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'employeeDuesAging'])->name('reports.employee-dues-aging');
+        Route::get('reports/cashflow-forecast', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'cashflowForecast'])->name('reports.cashflow-forecast');
+        Route::get('reports/party-statement/{party}', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'partyStatement'])->name('reports.party-statement');
+        Route::get('reports/monthly-pnl', [\App\Http\Controllers\Web\Accounting\ReportController::class, 'monthlyPnL'])->name('reports.monthly-pnl');
+        
+        // Periods (Dönem Kilit)
+        Route::get('periods', [\App\Http\Controllers\Web\Accounting\PeriodController::class, 'index'])->name('periods.index');
+        Route::post('periods/{period}/lock', [\App\Http\Controllers\Web\Accounting\PeriodController::class, 'lock'])->name('periods.lock');
+        Route::post('periods/{period}/unlock', [\App\Http\Controllers\Web\Accounting\PeriodController::class, 'unlock'])->name('periods.unlock');
+        
+        // Employee Advances (Personel Avansları)
+        Route::get('employees/{party}/advances', [\App\Http\Controllers\Web\Accounting\EmployeeAdvanceController::class, 'index'])->name('employees.advances.index');
+        Route::get('employees/{party}/advances/create', [\App\Http\Controllers\Web\Accounting\EmployeeAdvanceController::class, 'create'])->name('employees.advances.create');
+        Route::post('employees/{party}/advances', [\App\Http\Controllers\Web\Accounting\EmployeeAdvanceController::class, 'store'])->name('employees.advances.store');
+        
+        // Payroll Deductions (Maaş Kesintileri)
+        Route::get('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'show'])->name('payroll.deductions.show');
+        Route::post('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'store'])->name('payroll.deductions.store');
+    });
     
     // Accounting API Routes
     Route::prefix('api/accounting')->name('api.accounting.')->group(function () {

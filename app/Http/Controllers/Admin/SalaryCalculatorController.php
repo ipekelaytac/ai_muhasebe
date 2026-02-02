@@ -35,6 +35,7 @@ class SalaryCalculatorController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
+            'overtime_hours' => 'nullable|numeric|min:0',
         ]);
 
         $employee = Employee::with(['company', 'branch'])->findOrFail($request->employee_id);
@@ -73,8 +74,13 @@ class SalaryCalculatorController extends Controller
         $dailyMealAllowance = $contract->meal_allowance / 30;
         $calculatedMealAllowance = $dailyMealAllowance * $days;
         
+        // Calculate overtime (mesai)
+        $overtimeHours = $request->input('overtime_hours', 0);
+        $hourlyOvertimeRate = ($contract->monthly_net_salary / 225) * 1.5; // Maaş / 225 * 1.5
+        $calculatedOvertime = $hourlyOvertimeRate * $overtimeHours;
+        
         // Total
-        $totalAmount = $calculatedAmount + $calculatedMealAllowance;
+        $totalAmount = $calculatedAmount + $calculatedMealAllowance + $calculatedOvertime;
 
         $result = [
             'employee' => $employee,
@@ -88,6 +94,9 @@ class SalaryCalculatorController extends Controller
             'monthly_meal_allowance' => $contract->meal_allowance,
             'daily_meal_allowance' => $dailyMealAllowance,
             'calculated_meal_allowance' => $calculatedMealAllowance,
+            'overtime_hours' => $overtimeHours,
+            'hourly_overtime_rate' => $hourlyOvertimeRate,
+            'calculated_overtime' => $calculatedOvertime,
             'total_amount' => $totalAmount,
         ];
 

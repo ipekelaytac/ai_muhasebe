@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\Document;
-use App\Models\Payment;
-use App\Models\Cashbox;
-use App\Models\BankAccount;
-use App\Models\Party;
-use App\Models\Cheque;
-use App\Models\FinanceCategory;
+use App\Domain\Accounting\Models\Document;
+use App\Domain\Accounting\Models\Payment;
+use App\Domain\Accounting\Models\Cashbox;
+use App\Domain\Accounting\Models\BankAccount;
+use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Models\Cheque;
+use App\Domain\Accounting\Models\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;

@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollItem;
 use App\Models\Employee;
-use App\Models\Advance;
 use App\Models\PayrollDeduction;
-use App\Models\FinanceTransaction;
+// Legacy models removed - Advance and FinanceTransaction tables dropped
+// TODO: Migrate advance reports to use documents (type: advance_given/advance_received)
+// TODO: Migrate finance transaction reports to use documents
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -99,33 +100,17 @@ class ReportController extends Controller
             ];
         }
 
-        // Avans Raporu
+        // Avans Raporu - TODO: Migrate to use documents with type advance_given/advance_received
         if ($reportType === 'advance' || $reportType === 'all') {
-            $advanceQuery = Advance::with(['employee', 'company', 'branch', 'settlements'])
-                ->whereYear('advance_date', $year);
-            
-            if ($month) {
-                $advanceQuery->whereMonth('advance_date', $month);
-            }
-            
-            if ($user->company_id) {
-                $advanceQuery->where('company_id', $user->company_id);
-            }
-            if ($user->branch_id) {
-                $advanceQuery->where('branch_id', $user->branch_id);
-            }
-
-            $advances = $advanceQuery->get();
-            
+            // Legacy Advance model removed - table dropped
             $data['advance'] = [
-                'total_amount' => $advances->sum('amount'),
-                'total_settled' => $advances->sum(function ($advance) {
-                    return $advance->settlements->sum('settled_amount');
-                }),
-                'total_remaining' => $advances->sum('remaining_amount'),
-                'open_count' => $advances->where('status', 1)->count(),
-                'closed_count' => $advances->where('status', 0)->count(),
-                'advances' => $advances,
+                'total_amount' => 0,
+                'total_settled' => 0,
+                'total_remaining' => 0,
+                'open_count' => 0,
+                'closed_count' => 0,
+                'advances' => collect([]),
+                'note' => 'Avans raporu yeni muhasebe sistemine taşınmıştır. Lütfen Muhasebe > Raporlar menüsünü kullanın.',
             ];
         }
 
@@ -162,40 +147,18 @@ class ReportController extends Controller
             ];
         }
 
-        // Finans Raporu
+        // Finans Raporu - TODO: Migrate to use documents
         if ($reportType === 'finance' || $reportType === 'all') {
-            $financeQuery = FinanceTransaction::with(['category', 'company', 'branch'])
-                ->whereYear('transaction_date', $year);
-            
-            if ($month) {
-                $financeQuery->whereMonth('transaction_date', $month);
-            }
-            
-            if ($user->company_id) {
-                $financeQuery->where('company_id', $user->company_id);
-            }
-            if ($user->branch_id) {
-                $financeQuery->where('branch_id', $user->branch_id);
-            }
-
-            $transactions = $financeQuery->get();
-            
+            // Legacy FinanceTransaction model removed - table dropped
             $data['finance'] = [
-                'total_income' => $transactions->where('type', 'income')->sum('amount'),
-                'total_expense' => $transactions->where('type', 'expense')->sum('amount'),
-                'net' => $transactions->where('type', 'income')->sum('amount') - $transactions->where('type', 'expense')->sum('amount'),
-                'income_count' => $transactions->where('type', 'income')->count(),
-                'expense_count' => $transactions->where('type', 'expense')->count(),
-                'by_category' => $transactions->groupBy(function ($transaction) {
-                    return $transaction->category->name ?? 'Tanımsız';
-                })->map(function ($group) {
-                    return [
-                        'income' => $group->where('type', 'income')->sum('amount'),
-                        'expense' => $group->where('type', 'expense')->sum('amount'),
-                        'count' => $group->count(),
-                    ];
-                }),
-                'transactions' => $transactions,
+                'total_income' => 0,
+                'total_expense' => 0,
+                'net' => 0,
+                'income_count' => 0,
+                'expense_count' => 0,
+                'by_category' => collect([]),
+                'transactions' => collect([]),
+                'note' => 'Finans raporu yeni muhasebe sistemine taşınmıştır. Lütfen Muhasebe > Raporlar menüsünü kullanın.',
             ];
         }
 

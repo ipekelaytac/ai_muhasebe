@@ -4,6 +4,7 @@ namespace App\Domain\Accounting\Services;
 
 use App\Domain\Accounting\Enums\DocumentStatus;
 use App\Domain\Accounting\Enums\DocumentType;
+use App\Domain\Accounting\Enums\PaymentType;
 use App\Domain\Accounting\Models\AuditLog;
 use App\Domain\Accounting\Models\Document;
 use App\Domain\Accounting\Models\Payment;
@@ -27,6 +28,9 @@ class AllocationService
     public function allocate(Payment $payment, array $allocations): array
     {
         return DB::transaction(function () use ($payment, $allocations) {
+            // Lock payment for update to prevent concurrent modifications
+            $payment = Payment::lockForUpdate()->findOrFail($payment->id);
+            
             // Validate payment
             if ($payment->status !== 'confirmed') {
                 throw new \Exception('Sadece onaylanmış ödemeler dağıtılabilir.');
@@ -41,7 +45,8 @@ class AllocationService
             $totalAllocated = 0;
             
             foreach ($allocations as $allocationData) {
-                $document = Document::findOrFail($allocationData['document_id']);
+                // Lock document for update to prevent concurrent allocations
+                $document = Document::lockForUpdate()->findOrFail($allocationData['document_id']);
                 $amount = $allocationData['amount'];
                 
                 // Validate document belongs to same party
@@ -50,7 +55,10 @@ class AllocationService
                 }
                 
                 // Validate direction compatibility
-                $this->validateDirectionCompatibility($payment, $document);
+                // Internal offset payments can allocate across opposite directions (for advance deductions)
+                if ($payment->type !== PaymentType::INTERNAL_OFFSET) {
+                    $this->validateDirectionCompatibility($payment, $document);
+                }
                 
                 // Validate amount
                 $unpaidAmount = $document->unpaid_amount;
@@ -292,6 +300,7 @@ class AllocationService
                     'unpaid_amount' => $doc->unpaid_amount,
                     'description' => $doc->description,
                     'type_label' => $doc->type_label,
+                    'direction' => $doc->direction,
                 ];
             })
             ->toArray();

@@ -48,9 +48,15 @@ class PayrollInstallment extends Model
         return $this->hasMany(PayrollDeduction::class);
     }
 
+    /**
+     * @deprecated Legacy advance settlements removed - table dropped
+     * TODO: Migrate to use payment allocations to advance documents
+     */
     public function advanceSettlements()
     {
-        return $this->hasMany(AdvanceSettlement::class);
+        // Legacy relationship removed - AdvanceSettlement model deleted
+        // Return empty relationship to prevent errors
+        return $this->hasMany(\App\Models\PayrollDeduction::class)->whereRaw('1 = 0');
     }
 
     public function getPaidAmountAttribute()
@@ -62,7 +68,9 @@ class PayrollInstallment extends Model
     {
         $allocated = $this->paid_amount;
         $deductions = $this->deductions()->sum('amount');
-        $settlements = $this->advanceSettlements()->sum('settled_amount');
+        // Legacy advance settlements removed
+        // $settlements = $this->advanceSettlements()->sum('settled_amount');
+        $settlements = 0;
         
         return $this->planned_amount - $allocated - $deductions - $settlements;
     }

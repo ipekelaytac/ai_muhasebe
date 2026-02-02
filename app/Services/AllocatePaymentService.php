@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @deprecated This service is deprecated. Use App\Domain\Accounting\Services\AllocationService instead.
+ * This class is kept for backward compatibility during migration only.
+ */
 class AllocatePaymentService
 {
     /**
@@ -20,6 +24,7 @@ class AllocatePaymentService
      * @param array $allocations Array of ['document_id' => X, 'amount' => Y]
      * @return array Created allocations
      * @throws \Exception
+     * @deprecated Use App\Domain\Accounting\Services\AllocationService::allocate() instead
      */
     public function allocate(Payment $payment, array $allocations): array
     {

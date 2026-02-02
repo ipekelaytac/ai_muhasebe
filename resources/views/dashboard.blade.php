@@ -47,10 +47,11 @@
                 </div>
                 <h6 class="text-muted mb-1 small">Toplam Gelir</h6>
                 <h3 class="mb-0">
-                    {{ number_format(\App\Models\FinanceTransaction::where('type', 'income')
-                        ->whereYear('transaction_date', now()->year)
-                        ->whereMonth('transaction_date', now()->month)
-                        ->sum('amount'), 0) }} ₺
+                    {{ number_format(\App\Domain\Accounting\Models\Document::where('direction', 'receivable')
+                        ->whereYear('document_date', now()->year)
+                        ->whereMonth('document_date', now()->month)
+                        ->whereNotIn('status', ['cancelled', 'reversed'])
+                        ->sum('total_amount'), 0) }} ₺
                 </h3>
             </div>
         </div>
@@ -67,10 +68,11 @@
                 </div>
                 <h6 class="text-muted mb-1 small">Toplam Gider</h6>
                 <h3 class="mb-0">
-                    {{ number_format(\App\Models\FinanceTransaction::where('type', 'expense')
-                        ->whereYear('transaction_date', now()->year)
-                        ->whereMonth('transaction_date', now()->month)
-                        ->sum('amount'), 0) }} ₺
+                    {{ number_format(\App\Domain\Accounting\Models\Document::where('direction', 'payable')
+                        ->whereYear('document_date', now()->year)
+                        ->whereMonth('document_date', now()->month)
+                        ->whereNotIn('status', ['cancelled', 'reversed'])
+                        ->sum('total_amount'), 0) }} ₺
                 </h3>
             </div>
         </div>
@@ -83,9 +85,10 @@
             <i class="bi bi-clock-history me-2 text-primary"></i>
             Son İşlemler
         </h5>
-        <a href="{{ route('admin.finance.transactions.index') }}" class="btn btn-sm btn-link text-decoration-none">
+        {{-- Deprecated: Use Accounting API instead --}}
+        {{-- <a href="{{ route('admin.finance.transactions.index') }}" class="btn btn-sm btn-link text-decoration-none">
             Tümünü Gör <i class="bi bi-arrow-right ms-1"></i>
-        </a>
+        </a> --}}
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -99,21 +102,21 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse(\App\Models\FinanceTransaction::latest()->take(10)->get() as $transaction)
+                    @forelse(\App\Domain\Accounting\Models\Document::latest()->take(10)->get() as $document)
                         <tr>
                             <td>
-                                <div class="fw-medium">{{ $transaction->transaction_date->format('d.m.Y') }}</div>
-                                <small class="text-muted">{{ $transaction->transaction_date->format('H:i') }}</small>
+                                <div class="fw-medium">{{ $document->document_date->format('d.m.Y') }}</div>
+                                <small class="text-muted">{{ $document->created_at->format('H:i') }}</small>
                             </td>
                             <td>
-                                <span class="badge {{ $transaction->type === 'income' ? 'bg-success' : 'bg-danger' }}">
-                                    {{ $transaction->type === 'income' ? 'Gelir' : 'Gider' }}
+                                <span class="badge {{ $document->direction === 'receivable' ? 'bg-success' : 'bg-danger' }}">
+                                    {{ $document->direction === 'receivable' ? 'Gelir' : 'Gider' }}
                                 </span>
                             </td>
-                            <td>{{ $transaction->category->name }}</td>
+                            <td>{{ $document->category->name ?? 'Kategorisiz' }}</td>
                             <td class="text-end">
-                                <span class="fw-bold {{ $transaction->type === 'income' ? 'text-success' : 'text-danger' }}">
-                                    {{ $transaction->type === 'income' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }} ₺
+                                <span class="fw-bold {{ $document->direction === 'receivable' ? 'text-success' : 'text-danger' }}">
+                                    {{ $document->direction === 'receivable' ? '+' : '-' }}{{ number_format($document->total_amount, 2) }} ₺
                                 </span>
                             </td>
                         </tr>

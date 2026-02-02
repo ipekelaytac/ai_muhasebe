@@ -823,9 +823,10 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
-                <a href="{{ route('admin.employee-debts.create') }}?employee_id={{ $item->employee_id }}" class="btn btn-primary">
+                {{-- Deprecated: Employee debts moved to Accounting system --}}
+                {{-- <a href="{{ route('admin.employee-debts.create') }}?employee_id={{ $item->employee_id }}" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i>Yeni Borç Ekle
-                </a>
+                </a> --}}
             </div>
             @endif
         </div>

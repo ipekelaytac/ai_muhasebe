@@ -27,6 +27,8 @@ class Payment extends Model
         'type',
         'direction',
         'party_id',
+        'reference_type',
+        'reference_id',
         'cashbox_id',
         'bank_account_id',
         'to_cashbox_id',

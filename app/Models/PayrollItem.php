@@ -57,9 +57,15 @@ class PayrollItem extends Model
         return $this->hasMany(PayrollDeduction::class);
     }
 
+    /**
+     * @deprecated Legacy advance settlements removed - table dropped
+     * TODO: Migrate to use payment allocations to advance documents
+     */
     public function advanceSettlements()
     {
-        return $this->hasMany(AdvanceSettlement::class);
+        // Legacy relationship removed - AdvanceSettlement model deleted
+        // Return empty relationship to prevent errors
+        return $this->hasMany(\App\Models\PayrollDeduction::class)->whereRaw('1 = 0');
     }
 
     public function debtPayments()

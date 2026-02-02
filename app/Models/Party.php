@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @deprecated This model is deprecated. Use App\Domain\Accounting\Models\Party instead.
+ * This class is kept for backward compatibility during migration only.
+ * 
+ * For new code, always use: App\Domain\Accounting\Models\Party
+ */
 class Party extends Model
 {
     use HasFactory, SoftDeletes;

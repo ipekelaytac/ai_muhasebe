@@ -19,6 +19,11 @@ class PartyService
                 $data['code'] = Party::generateCode($data['company_id'], $data['type']);
             }
             
+            // Ensure payment_terms_days has a default value (migration requires non-null)
+            if (!isset($data['payment_terms_days']) || $data['payment_terms_days'] === null) {
+                $data['payment_terms_days'] = 0;
+            }
+            
             $party = Party::create($data);
             
             AuditLog::log($party, 'create', null, $party->toArray());

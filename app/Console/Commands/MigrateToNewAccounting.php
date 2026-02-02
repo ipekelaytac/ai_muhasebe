@@ -9,10 +9,11 @@ use App\Domain\Accounting\Models\ExpenseCategory;
 use App\Domain\Accounting\Models\Party;
 use App\Domain\Accounting\Models\Payment;
 use App\Domain\Accounting\Models\PaymentAllocation;
-use App\Models\Customer;
-use App\Models\CustomerTransaction;
+// Legacy models removed - tables dropped
+// use App\Models\Customer;
+// use App\Models\CustomerTransaction;
 use App\Models\Employee;
-use App\Models\FinanceTransaction;
+// use App\Models\FinanceTransaction;
 use App\Models\Overtime;
 use App\Models\PayrollItem;
 use Illuminate\Console\Command;
@@ -23,7 +24,7 @@ class MigrateToNewAccounting extends Command
     protected $signature = 'accounting:migrate 
                             {--company= : Company ID to migrate}
                             {--dry-run : Run without making changes}
-                            {--step= : Run specific step only (parties|cashboxes|categories|customers|payroll|overtimes|finance)}';
+                            {--step= : Run specific step only (parties|cashboxes|categories|payroll|overtimes)}';
     
     protected $description = 'Migrate existing data to new accounting model';
     
@@ -63,9 +64,10 @@ class MigrateToNewAccounting extends Command
                 $this->migrateParties();
             }
             
-            if (!$step || $step === 'customers') {
-                $this->migrateCustomerTransactions();
-            }
+            // Legacy steps removed - customers and finance_transactions tables dropped
+            // if (!$step || $step === 'customers') {
+            //     $this->migrateCustomerTransactions();
+            // }
             
             if (!$step || $step === 'payroll') {
                 $this->migratePayroll();
@@ -75,9 +77,10 @@ class MigrateToNewAccounting extends Command
                 $this->migrateOvertimes();
             }
             
-            if (!$step || $step === 'finance') {
-                $this->migrateFinanceTransactions();
-            }
+            // Legacy step removed - finance_transactions table dropped
+            // if (!$step || $step === 'finance') {
+            //     $this->migrateFinanceTransactions();
+            // }
             
             if ($this->dryRun) {
                 DB::rollBack();
@@ -152,44 +155,10 @@ class MigrateToNewAccounting extends Command
     
     protected function migrateParties(): void
     {
-        $this->info('Migrating parties from customers and employees...');
+        $this->info('Migrating parties from employees...');
         
-        // Migrate customers
-        $customers = Customer::where('company_id', $this->companyId)->get();
-        $this->info("Found {$customers->count()} customers to migrate");
-        
-        foreach ($customers as $customer) {
-            $existing = Party::where('company_id', $this->companyId)
-                ->where('linkable_type', Customer::class)
-                ->where('linkable_id', $customer->id)
-                ->first();
-            
-            if ($existing) {
-                $this->partyMap['customer_' . $customer->id] = $existing->id;
-                continue;
-            }
-            
-            $type = $customer->type === 'supplier' ? 'supplier' : 'customer';
-            
-            if (!$this->dryRun) {
-                $party = Party::create([
-                    'company_id' => $this->companyId,
-                    'type' => $type,
-                    'linkable_type' => Customer::class,
-                    'linkable_id' => $customer->id,
-                    'code' => Party::generateCode($this->companyId, $type),
-                    'name' => $customer->name,
-                    'tax_number' => $customer->tax_number ?? null,
-                    'tax_office' => $customer->tax_office ?? null,
-                    'phone' => $customer->phone ?? null,
-                    'email' => $customer->email ?? null,
-                    'address' => $customer->address ?? null,
-                    'is_active' => true,
-                ]);
-                
-                $this->partyMap['customer_' . $customer->id] = $party->id;
-            }
-        }
+        // Legacy customer migration removed - customers table dropped
+        // Customers should already be migrated to parties via separate migration
         
         // Migrate employees
         $employees = Employee::where('company_id', $this->companyId)->get();
@@ -226,87 +195,14 @@ class MigrateToNewAccounting extends Command
         $this->info('Migrated ' . count($this->partyMap) . ' parties');
     }
     
+    /**
+     * @deprecated Legacy method - customer_transactions table dropped
+     * This method is disabled and kept for reference only
+     */
     protected function migrateCustomerTransactions(): void
     {
-        $this->info('Migrating customer transactions...');
-        
-        $transactions = CustomerTransaction::whereHas('customer', function ($q) {
-            $q->where('company_id', $this->companyId);
-        })->with('customer')->get();
-        
-        $this->info("Found {$transactions->count()} customer transactions");
-        
-        $cashbox = Cashbox::where('company_id', $this->companyId)->first();
-        
-        foreach ($transactions as $tx) {
-            $partyKey = 'customer_' . $tx->customer_id;
-            $partyId = $this->partyMap[$partyKey] ?? null;
-            
-            if (!$partyId) {
-                $this->warn("No party found for customer {$tx->customer_id}, skipping");
-                continue;
-            }
-            
-            // Determine if this is a document or payment
-            // In the old system, income = we receive money (payment in) or they owe us (receivable)
-            // expense = we pay money (payment out) or we owe them (payable)
-            
-            // For simplicity, treat all as documents with immediate payment
-            $isReceivable = $tx->type === 'income';
-            
-            if (!$this->dryRun) {
-                // Create document
-                $doc = Document::create([
-                    'company_id' => $this->companyId,
-                    'branch_id' => $tx->customer->branch_id ?? null,
-                    'document_number' => Document::generateNumber(
-                        $this->companyId,
-                        null,
-                        $isReceivable ? DocumentType::CUSTOMER_INVOICE : DocumentType::SUPPLIER_INVOICE
-                    ),
-                    'type' => $isReceivable ? DocumentType::CUSTOMER_INVOICE : DocumentType::SUPPLIER_INVOICE,
-                    'direction' => $isReceivable ? 'receivable' : 'payable',
-                    'party_id' => $partyId,
-                    'document_date' => $tx->date ?? $tx->created_at,
-                    'total_amount' => abs($tx->amount),
-                    'status' => 'settled', // Assume settled since it was recorded
-                    'source_type' => CustomerTransaction::class,
-                    'source_id' => $tx->id,
-                    'description' => $tx->description ?? 'Migrated from customer transactions',
-                ]);
-                
-                // Create payment
-                $payment = Payment::create([
-                    'company_id' => $this->companyId,
-                    'branch_id' => $tx->customer->branch_id ?? null,
-                    'payment_number' => Payment::generateNumber(
-                        $this->companyId,
-                        null,
-                        $isReceivable ? 'cash_in' : 'cash_out'
-                    ),
-                    'type' => $isReceivable ? 'cash_in' : 'cash_out',
-                    'direction' => $isReceivable ? 'in' : 'out',
-                    'party_id' => $partyId,
-                    'cashbox_id' => $cashbox?->id,
-                    'payment_date' => $tx->date ?? $tx->created_at,
-                    'amount' => abs($tx->amount),
-                    'net_amount' => abs($tx->amount),
-                    'status' => 'confirmed',
-                    'description' => $tx->description ?? 'Migrated from customer transactions',
-                ]);
-                
-                // Create allocation
-                PaymentAllocation::create([
-                    'payment_id' => $payment->id,
-                    'document_id' => $doc->id,
-                    'amount' => abs($tx->amount),
-                    'allocation_date' => $tx->date ?? $tx->created_at,
-                    'status' => 'active',
-                ]);
-            }
-        }
-        
-        $this->info('Migrated customer transactions');
+        $this->warn('Legacy customer transactions migration disabled - customer_transactions table dropped');
+        return;
     }
     
     protected function migratePayroll(): void
@@ -401,90 +297,13 @@ class MigrateToNewAccounting extends Command
         $this->info('Migrated overtimes');
     }
     
+    /**
+     * @deprecated Legacy method - finance_transactions table dropped
+     * This method is disabled and kept for reference only
+     */
     protected function migrateFinanceTransactions(): void
     {
-        $this->info('Migrating finance transactions...');
-        
-        $transactions = FinanceTransaction::where('company_id', $this->companyId)
-            ->with('category')
-            ->get();
-        
-        $this->info("Found {$transactions->count()} finance transactions");
-        
-        $cashbox = Cashbox::where('company_id', $this->companyId)->first();
-        
-        foreach ($transactions as $tx) {
-            // Skip if already linked to a party-based transaction
-            if ($tx->related_table && in_array($tx->related_table, ['customer_transactions', 'payroll_payments'])) {
-                continue;
-            }
-            
-            // Create as expense/income document + payment
-            $isIncome = $tx->type === 'income';
-            
-            if (!$this->dryRun) {
-                // Find or create "other" party for non-party transactions
-                $otherParty = Party::firstOrCreate(
-                    [
-                        'company_id' => $this->companyId,
-                        'type' => 'other',
-                        'code' => 'DIG-GENEL',
-                    ],
-                    [
-                        'name' => 'Genel İşlemler',
-                        'is_active' => true,
-                    ]
-                );
-                
-                $doc = Document::create([
-                    'company_id' => $this->companyId,
-                    'branch_id' => $tx->branch_id,
-                    'document_number' => Document::generateNumber(
-                        $this->companyId,
-                        $tx->branch_id,
-                        $isIncome ? DocumentType::INCOME_DUE : DocumentType::EXPENSE_DUE
-                    ),
-                    'type' => $isIncome ? DocumentType::INCOME_DUE : DocumentType::EXPENSE_DUE,
-                    'direction' => $isIncome ? 'receivable' : 'payable',
-                    'party_id' => $otherParty->id,
-                    'document_date' => $tx->date ?? $tx->created_at,
-                    'total_amount' => abs($tx->amount),
-                    'category_id' => $tx->category_id ? ($this->categoryMap[$tx->category?->code] ?? null) : null,
-                    'status' => 'settled',
-                    'source_type' => FinanceTransaction::class,
-                    'source_id' => $tx->id,
-                    'description' => $tx->description,
-                ]);
-                
-                $payment = Payment::create([
-                    'company_id' => $this->companyId,
-                    'branch_id' => $tx->branch_id,
-                    'payment_number' => Payment::generateNumber(
-                        $this->companyId,
-                        $tx->branch_id,
-                        $isIncome ? 'cash_in' : 'cash_out'
-                    ),
-                    'type' => $isIncome ? 'cash_in' : 'cash_out',
-                    'direction' => $isIncome ? 'in' : 'out',
-                    'party_id' => $otherParty->id,
-                    'cashbox_id' => $cashbox?->id,
-                    'payment_date' => $tx->date ?? $tx->created_at,
-                    'amount' => abs($tx->amount),
-                    'net_amount' => abs($tx->amount),
-                    'status' => 'confirmed',
-                    'description' => $tx->description,
-                ]);
-                
-                PaymentAllocation::create([
-                    'payment_id' => $payment->id,
-                    'document_id' => $doc->id,
-                    'amount' => abs($tx->amount),
-                    'allocation_date' => $tx->date ?? $tx->created_at,
-                    'status' => 'active',
-                ]);
-            }
-        }
-        
-        $this->info('Migrated finance transactions');
+        $this->warn('Legacy finance transactions migration disabled - finance_transactions table dropped');
+        return;
     }
 }

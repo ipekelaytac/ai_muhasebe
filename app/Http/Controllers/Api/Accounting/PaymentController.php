@@ -74,6 +74,11 @@ class PaymentController extends Controller
             'notes' => 'nullable|string',
         ]);
         
+        // Ensure fee_amount is 0 if not provided
+        if (!isset($validated['fee_amount']) || $validated['fee_amount'] === null) {
+            $validated['fee_amount'] = 0;
+        }
+        
         try {
             $payment = $this->paymentService->createPayment($validated);
             

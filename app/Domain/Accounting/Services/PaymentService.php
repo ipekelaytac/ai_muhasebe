@@ -30,13 +30,18 @@ class PaymentService
                 $data['payment_date']
             );
             
-            // Auto-determine direction if not provided
-            if (empty($data['direction'])) {
+            // For internal_offset, direction should be 'internal'
+            if ($data['type'] === PaymentType::INTERNAL_OFFSET) {
+                $data['direction'] = 'internal'; // Special direction for internal offsets
+            } elseif (empty($data['direction'])) {
+                // Auto-determine direction if not provided
                 $data['direction'] = PaymentType::getDirection($data['type']);
             }
             
-            // Validate cashbox/bank account
-            $this->validatePaymentAccount($data);
+            // Validate cashbox/bank account (not required for internal_offset)
+            if (PaymentType::requiresAccount($data['type'])) {
+                $this->validatePaymentAccount($data);
+            }
             
             // Generate payment number if not provided
             if (empty($data['payment_number'])) {
@@ -52,8 +57,13 @@ class PaymentService
                 $data['status'] = 'confirmed';
             }
             
+            // Set default fee_amount if not provided
+            if (!isset($data['fee_amount']) || $data['fee_amount'] === null) {
+                $data['fee_amount'] = 0;
+            }
+            
             // Calculate net amount
-            $data['net_amount'] = $data['amount'] - ($data['fee_amount'] ?? 0);
+            $data['net_amount'] = $data['amount'] - $data['fee_amount'];
             
             // Create payment
             $payment = Payment::create($data);
@@ -143,6 +153,11 @@ class PaymentService
                 );
             }
             
+            // Set default fee_amount if updating and null
+            if (isset($data['fee_amount']) && $data['fee_amount'] === null) {
+                $data['fee_amount'] = 0;
+            }
+            
             // Recalculate net amount if amount or fee changed
             if (isset($data['amount']) || isset($data['fee_amount'])) {
                 $amount = $data['amount'] ?? $payment->amount;
@@ -223,6 +238,14 @@ class PaymentService
             $reversalData['status'] = 'reversed';
             $reversalData['direction'] = $payment->direction === 'in' ? 'out' : 'in'; // Opposite
             $reversalData['description'] = "Ters kayıt: {$payment->payment_number}" . ($reason ? " - {$reason}" : '');
+            
+            // Ensure fee_amount is set (not null)
+            if (!isset($reversalData['fee_amount']) || $reversalData['fee_amount'] === null) {
+                $reversalData['fee_amount'] = 0;
+            }
+            
+            // Recalculate net_amount
+            $reversalData['net_amount'] = $reversalData['amount'] - $reversalData['fee_amount'];
             
             $reversalPayment = Payment::create($reversalData);
             

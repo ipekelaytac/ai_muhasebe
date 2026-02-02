@@ -1,4 +1,4 @@
-<header class="bg-white border-bottom shadow-sm sticky-top" style="z-index: 1030;">
+<header class="bg-white border-bottom shadow-sm sticky-top" style="z-index: 1020;">
     <div class="d-flex align-items-center justify-content-between p-2 p-md-3">
         <div class="d-flex align-items-center flex-grow-1">
             <button class="btn btn-link d-lg-none me-2 p-1" onclick="toggleSidebar()" type="button">

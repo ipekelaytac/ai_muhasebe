@@ -8,8 +8,9 @@ use App\Domain\Accounting\Models\PaymentAllocation;
 use App\Domain\Accounting\Models\Party;
 use App\Domain\Accounting\Models\Cashbox;
 use App\Domain\Accounting\Models\BankAccount;
-use App\Models\FinanceTransaction;
-use App\Models\CustomerTransaction;
+// Legacy models removed - tables dropped
+// use App\Models\FinanceTransaction;
+// use App\Models\CustomerTransaction;
 use App\Models\PayrollPayment;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
