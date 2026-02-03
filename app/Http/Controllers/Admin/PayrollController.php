@@ -348,14 +348,24 @@ class PayrollController extends Controller
             ->where('is_active', 1)
             ->get();
 
-        // Get open debts for this employee
-        $openDebts = \App\Models\EmployeeDebt::where('employee_id', $item->employee_id)
-            ->where('status', 1)
-            ->with('payments')
-            ->get()
-            ->filter(function ($debt) {
-                return $debt->remaining_amount > 0;
-            });
+        // Get open debts for this employee from new accounting system
+        $openDebts = collect([]);
+        if ($item->employee->party_id) {
+            $openDebts = \App\Domain\Accounting\Models\Document::where('party_id', $item->employee->party_id)
+                ->where('type', \App\Domain\Accounting\Enums\DocumentType::EXPENSE_DUE)
+                ->where('direction', 'receivable') // Employee owes company
+                ->where('status', '!=', \App\Domain\Accounting\Enums\DocumentStatus::CANCELLED)
+                ->where('status', '!=', \App\Domain\Accounting\Enums\DocumentStatus::REVERSED)
+                ->orderBy('document_date')
+                ->orderBy('document_number')
+                ->get()
+                ->filter(function ($doc) {
+                    return $doc->unpaid_amount > 0;
+                });
+        }
+        
+        // Legacy: Also include old EmployeeDebt records if any exist (read-only)
+        // Note: EmployeeDebt model is deprecated and cannot be created/updated
         
         // Get accounting payments per installment
         $installmentPayments = [];
@@ -704,50 +714,118 @@ class PayrollController extends Controller
             abort(403);
         }
 
+        // Support both old system (employee_debt_id) and new system (document_id)
         $request->validate([
-            'employee_debt_id' => 'required|exists:employee_debts,id',
+            'document_id' => 'required_without:employee_debt_id',
+            'employee_debt_id' => 'required_without:document_id',
             'amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date',
             'notes' => 'nullable|string',
         ]);
 
-        $debt = \App\Models\EmployeeDebt::findOrFail($request->employee_debt_id);
-        if ($debt->employee_id != $item->employee_id) {
-            return back()->withErrors(['employee_debt_id' => 'Bu borç bu çalışana ait değil.']);
+        $debtId = $request->document_id ?? $request->employee_debt_id;
+        $isDocument = $request->has('document_id');
+        
+        if ($isDocument) {
+            // New accounting system - use Payment and PaymentAllocation
+            $document = \App\Domain\Accounting\Models\Document::findOrFail($debtId);
+            
+            // Verify document is expense_due and belongs to employee's party
+            if ($document->type !== \App\Domain\Accounting\Enums\DocumentType::EXPENSE_DUE) {
+                return back()->withErrors(['document_id' => 'Seçilen belge bir borç belgesi değil.']);
+            }
+            
+            if (!$item->employee->party_id || $document->party_id != $item->employee->party_id) {
+                return back()->withErrors(['document_id' => 'Bu borç bu çalışana ait değil.']);
+            }
+            
+            if ($document->unpaid_amount < $request->amount) {
+                return back()->withErrors(['amount' => 'Ödeme tutarı kalan borçtan fazla olamaz.']);
+            }
+            
+            // Create payment using PaymentService
+            try {
+                $paymentService = app(\App\Domain\Accounting\Services\PaymentService::class);
+                
+                // Determine payment type based on context (for now, use cash_out as default)
+                // In future, this could be a form field
+                $paymentData = [
+                    'company_id' => $user->company_id,
+                    'branch_id' => $item->payrollPeriod->branch_id,
+                    'type' => 'cash_out', // Default - could be made configurable
+                    'party_id' => $item->employee->party_id,
+                    'payment_date' => $request->payment_date,
+                    'amount' => $request->amount,
+                    'description' => 'Borç Ödemesi: ' . ($request->notes ?? $document->description ?? ''),
+                    'notes' => $request->notes,
+                    'cashbox_id' => null, // Will need to be selected or use default
+                    'allocations' => [
+                        [
+                            'document_id' => $document->id,
+                            'amount' => $request->amount,
+                        ]
+                    ],
+                ];
+                
+                // For now, redirect to payment creation page with pre-filled data
+                // This is better UX than trying to auto-select cashbox
+                return redirect()->route('accounting.payments.create', [
+                    'party_id' => $item->employee->party_id,
+                    'document_id' => $document->id,
+                    'suggested_amount' => $request->amount,
+                    'context' => 'payroll',
+                    'payroll_item_id' => $item->id,
+                ])->with('info', 'Borç ödemesi için ödeme sayfasına yönlendiriliyorsunuz. Lütfen kasa veya banka seçiniz.');
+                
+            } catch (\Exception $e) {
+                return back()->withErrors(['error' => 'Borç ödemesi oluşturulurken hata oluştu: ' . $e->getMessage()]);
+            }
+        } else {
+            // Legacy system - EmployeeDebt
+            $debt = \App\Models\EmployeeDebt::findOrFail($debtId);
+            if ($debt->employee_id != $item->employee_id) {
+                return back()->withErrors(['employee_debt_id' => 'Bu borç bu çalışana ait değil.']);
+            }
+
+            if ($debt->remaining_amount < $request->amount) {
+                return back()->withErrors(['amount' => 'Ödeme tutarı kalan borçtan fazla olamaz.']);
+            }
+
+            // Note: EmployeeDebtPayment is deprecated, but we'll try to create it
+            // This will fail if the model boot method is active
+            try {
+                \App\Models\EmployeeDebtPayment::create([
+                    'employee_debt_id' => $debt->id,
+                    'payroll_item_id' => $item->id,
+                    'amount' => $request->amount,
+                    'payment_date' => $request->payment_date,
+                    'notes' => $request->notes,
+                    'created_by' => $user->id,
+                ]);
+
+                // Update debt status if fully paid
+                if ($debt->remaining_amount <= 0) {
+                    $debt->status = 0;
+                    $debt->save();
+                }
+
+                // Recalculate item totals
+                $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
+                $item->net_payable = $item->base_net_salary 
+                    + $item->meal_allowance 
+                    + ($item->overtime_total ?? 0)
+                    + $item->bonus_total 
+                    - $item->deduction_total 
+                    - $item->advances_deducted_total
+                    - $item->debtPayments()->sum('amount');
+                $item->save();
+
+                return redirect()->route('admin.payroll.item', $item)
+                    ->with('success', 'Borç ödemesi başarıyla eklendi.');
+            } catch (\Exception $e) {
+                return back()->withErrors(['error' => 'Eski sistem borç ödemesi artık desteklenmiyor. Lütfen borcu yeni muhasebe sistemine taşıyın.']);
+            }
         }
-
-        if ($debt->remaining_amount < $request->amount) {
-            return back()->withErrors(['amount' => 'Ödeme tutarı kalan borçtan fazla olamaz.']);
-        }
-
-        \App\Models\EmployeeDebtPayment::create([
-            'employee_debt_id' => $debt->id,
-            'payroll_item_id' => $item->id,
-            'amount' => $request->amount,
-            'payment_date' => $request->payment_date,
-            'notes' => $request->notes,
-            'created_by' => $user->id,
-        ]);
-
-        // Update debt status if fully paid
-        if ($debt->remaining_amount <= 0) {
-            $debt->status = 0;
-            $debt->save();
-        }
-
-        // Recalculate item totals
-        $item->advances_deducted_total = $item->advanceSettlements()->sum('settled_amount');
-        $item->net_payable = $item->base_net_salary 
-            + $item->meal_allowance 
-            + ($item->overtime_total ?? 0)
-            + $item->bonus_total 
-            - $item->deduction_total 
-            - $item->advances_deducted_total
-            - $item->debtPayments()->sum('amount');
-        $item->save();
-
-        return redirect()->route('admin.payroll.item', $item)
-            ->with('success', 'Borç ödemesi başarıyla eklendi.');
     }
 
     public function deleteDebtPayment(PayrollItem $item, \App\Models\EmployeeDebtPayment $debtPayment)

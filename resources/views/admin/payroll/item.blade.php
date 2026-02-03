@@ -480,9 +480,16 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Borç Ödemeleri</h5>
-            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#debtPaymentModal">
-                <i class="bi bi-plus-circle me-2"></i>Borç Ödemesi Ekle
-            </button>
+            <div>
+                @if($item->employee->party_id)
+                    <a href="{{ route('accounting.employees.debts.create', ['party_id' => $item->employee->party_id, 'payroll_item_id' => $item->id]) }}" class="btn btn-outline-danger btn-sm me-2">
+                        <i class="bi bi-plus-circle me-1"></i>Borç Ekle
+                    </a>
+                @endif
+                <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#debtPaymentModal">
+                    <i class="bi bi-cash-coin me-2"></i>Borç Ödemesi Yap
+                </button>
+            </div>
         </div>
         <div class="card-body">
             @forelse($item->debtPayments as $debtPayment)
@@ -808,24 +815,26 @@
                         </select>
                     </div>
                     
-                    <div class="mb-3" id="overtime_cashbox_field" style="display: none;">
-                        <label class="form-label">Kasa <span class="text-danger">*</span></label>
+                    <div class="mb-3" id="overtime_cashbox_field">
+                        <label class="form-label">Kasa</label>
                         <select name="cashbox_id" id="overtime_cashbox_id" class="form-select">
                             <option value="">Seçiniz</option>
                             @foreach(\App\Domain\Accounting\Models\Cashbox::where('company_id', $item->payrollPeriod->company_id)->active()->get() as $cashbox)
                                 <option value="{{ $cashbox->id }}">{{ $cashbox->name }}</option>
                             @endforeach
                         </select>
+                        <div class="invalid-feedback d-none" id="overtime_cashbox_error">Kasa ödemeleri için kasa seçilmelidir.</div>
                     </div>
                     
-                    <div class="mb-3" id="overtime_bank_field" style="display: none;">
-                        <label class="form-label">Banka <span class="text-danger">*</span></label>
+                    <div class="mb-3" id="overtime_bank_field">
+                        <label class="form-label">Banka</label>
                         <select name="bank_account_id" id="overtime_bank_id" class="form-select">
                             <option value="">Seçiniz</option>
                             @foreach(\App\Domain\Accounting\Models\BankAccount::where('company_id', $item->payrollPeriod->company_id)->active()->get() as $bank)
                                 <option value="{{ $bank->id }}">{{ $bank->name }}</option>
                             @endforeach
                         </select>
+                        <div class="invalid-feedback d-none" id="overtime_bank_error">Banka ödemeleri için banka hesabı seçilmelidir.</div>
                     </div>
                     
                     <div class="mb-3">
@@ -868,15 +877,32 @@
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="employee_debt_id" class="form-label">Borç <span class="text-danger">*</span></label>
-                        <select name="employee_debt_id" id="employee_debt_id" required class="form-select">
+                        <label for="debt_document_id" class="form-label">Borç <span class="text-danger">*</span></label>
+                        <select name="document_id" id="debt_document_id" required class="form-select">
                             <option value="">Seçiniz</option>
                             @foreach($openDebts as $debt)
-                                <option value="{{ $debt->id }}" data-remaining="{{ $debt->remaining_amount }}">
-                                    {{ $debt->debt_date->format('d.m.Y') }} - {{ number_format($debt->amount, 2) }} ₺ (Kalan: {{ number_format($debt->remaining_amount, 2) }} ₺)
+                                @php
+                                    // Support both old EmployeeDebt and new Document models
+                                    $debtDate = $debt->debt_date ?? $debt->document_date;
+                                    $debtAmount = $debt->amount ?? $debt->total_amount;
+                                    $remainingAmount = $debt->remaining_amount ?? $debt->unpaid_amount;
+                                    $debtId = $debt->id;
+                                    $isDocument = $debt instanceof \App\Domain\Accounting\Models\Document;
+                                @endphp
+                                <option value="{{ $debtId }}" 
+                                        data-remaining="{{ $remainingAmount }}" 
+                                        data-is-document="{{ $isDocument ? '1' : '0' }}"
+                                        @if(!$isDocument) data-employee-debt-id="{{ $debtId }}" @endif>
+                                    {{ $debtDate->format('d.m.Y') }} - {{ number_format($debtAmount, 2) }} ₺ (Kalan: {{ number_format($remainingAmount, 2) }} ₺)
+                                    @if($isDocument)
+                                        - {{ $debt->document_number }}
+                                    @endif
                                 </option>
                             @endforeach
                         </select>
+                        <small class="text-muted">Yeni muhasebe sistemindeki borçlar belge numarası ile gösterilir</small>
+                        {{-- Hidden field for legacy system support --}}
+                        <input type="hidden" name="employee_debt_id" id="employee_debt_id" value="">
                     </div>
                     <div class="mb-3">
                         <label for="debt_payment_amount" class="form-label">Ödeme Tutarı <span class="text-danger">*</span></label>
@@ -909,10 +935,11 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
-                {{-- Deprecated: Employee debts moved to Accounting system --}}
-                {{-- <a href="{{ route('admin.employee-debts.create') }}?employee_id={{ $item->employee_id }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-1"></i>Yeni Borç Ekle
-                </a> --}}
+                @if($item->employee->party_id)
+                    <a href="{{ route('accounting.employees.debts.create', ['party_id' => $item->employee->party_id, 'payroll_item_id' => $item->id]) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Yeni Borç Ekle
+                    </a>
+                @endif
             </div>
             @endif
         </div>
@@ -936,9 +963,10 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleBothAmounts(); // Initial call to set visibility based on default/old value
 
     // Debt payment modal - set max amount based on selected debt
-    var debtSelect = document.getElementById('employee_debt_id');
+    var debtSelect = document.getElementById('debt_document_id');
     var debtAmountInput = document.getElementById('debt_payment_amount');
     var debtMaxAmountInfo = document.getElementById('debt_max_amount_info');
+    var employeeDebtIdInput = document.getElementById('employee_debt_id');
     
     if (debtSelect && debtAmountInput && debtMaxAmountInfo) {
         debtSelect.addEventListener('change', function() {
@@ -947,9 +975,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 var remaining = parseFloat(selectedOption.getAttribute('data-remaining'));
                 debtAmountInput.setAttribute('max', remaining);
                 debtMaxAmountInfo.textContent = 'Maksimum ödeme tutarı: ' + remaining.toFixed(2) + ' ₺';
+                
+                // Set employee_debt_id for legacy system if needed
+                var isDocument = selectedOption.getAttribute('data-is-document') === '1';
+                if (!isDocument && employeeDebtIdInput) {
+                    var legacyDebtId = selectedOption.getAttribute('data-employee-debt-id');
+                    if (legacyDebtId) {
+                        employeeDebtIdInput.value = legacyDebtId;
+                    }
+                } else if (employeeDebtIdInput) {
+                    employeeDebtIdInput.value = '';
+                }
+                
+                // Show info if it's a new accounting document
+                if (isDocument) {
+                    debtMaxAmountInfo.textContent += ' (Yeni Muhasebe Sistemi - Ödeme sayfasına yönlendirileceksiniz)';
+                }
             } else {
                 debtAmountInput.removeAttribute('max');
                 debtMaxAmountInfo.textContent = '';
+                if (employeeDebtIdInput) {
+                    employeeDebtIdInput.value = '';
+                }
             }
         });
     }
@@ -1013,58 +1060,102 @@ document.addEventListener('DOMContentLoaded', function() {
     if (overtimePaymentModal) {
         overtimePaymentModal.addEventListener('show.bs.modal', function(event) {
             var button = event.relatedTarget;
+            if (!button) return;
+            
             var overtimeId = button.getAttribute('data-overtime-id');
             var overtimeNumber = button.getAttribute('data-overtime-number');
             var overtimeAmount = button.getAttribute('data-overtime-amount');
             var partyId = button.getAttribute('data-party-id');
             
             // Fill form fields
-            document.getElementById('overtime_document_id').value = overtimeId;
-            document.getElementById('overtime_party_id').value = partyId;
-            document.getElementById('overtime_document_number').textContent = overtimeNumber;
-            document.getElementById('overtime_unpaid_amount').textContent = parseFloat(overtimeAmount).toFixed(2);
-            document.getElementById('overtime_amount').value = parseFloat(overtimeAmount).toFixed(2);
+            var docIdField = document.getElementById('overtime_document_id');
+            var partyIdField = document.getElementById('overtime_party_id');
+            var docNumberField = document.getElementById('overtime_document_number');
+            var unpaidAmountField = document.getElementById('overtime_unpaid_amount');
+            var amountField = document.getElementById('overtime_amount');
+            
+            if (docIdField) docIdField.value = overtimeId || '';
+            if (partyIdField) partyIdField.value = partyId || '';
+            if (docNumberField) docNumberField.textContent = overtimeNumber || '-';
+            if (unpaidAmountField) unpaidAmountField.textContent = parseFloat(overtimeAmount || 0).toFixed(2);
+            if (amountField) amountField.value = parseFloat(overtimeAmount || 0).toFixed(2);
             
             // Reset form
-            document.getElementById('overtime_payment_type').value = '';
-            document.getElementById('overtime_cashbox_id').value = '';
-            document.getElementById('overtime_bank_id').value = '';
-            document.getElementById('overtime_cashbox_field').style.display = 'none';
-            document.getElementById('overtime_bank_field').style.display = 'none';
+            var paymentTypeSelect = document.getElementById('overtime_payment_type');
+            var cashboxSelect = document.getElementById('overtime_cashbox_id');
+            var bankSelect = document.getElementById('overtime_bank_id');
+            
+            if (paymentTypeSelect) paymentTypeSelect.value = '';
+            if (cashboxSelect) {
+                cashboxSelect.value = '';
+                cashboxSelect.classList.remove('is-invalid');
+            }
+            if (bankSelect) {
+                bankSelect.value = '';
+                bankSelect.classList.remove('is-invalid');
+            }
+            
+            // Clear error messages
+            var cashboxError = document.getElementById('overtime_cashbox_error');
+            if (cashboxError) cashboxError.classList.add('d-none');
+            var bankError = document.getElementById('overtime_bank_error');
+            if (bankError) bankError.classList.add('d-none');
         });
         
-        // Payment type change handler
-        var overtimePaymentType = document.getElementById('overtime_payment_type');
-        var overtimeCashboxField = document.getElementById('overtime_cashbox_field');
-        var overtimeBankField = document.getElementById('overtime_bank_field');
-        
-        if (overtimePaymentType) {
-            overtimePaymentType.addEventListener('change', function() {
-                var type = this.value;
-                overtimeCashboxField.style.display = 'none';
-                overtimeBankField.style.display = 'none';
-                
-                if (type === 'cash_out') {
-                    overtimeCashboxField.style.display = 'block';
-                    document.getElementById('overtime_cashbox_id').required = true;
-                    document.getElementById('overtime_bank_id').required = false;
-                } else if (type === 'bank_out') {
-                    overtimeBankField.style.display = 'block';
-                    document.getElementById('overtime_bank_id').required = true;
-                    document.getElementById('overtime_cashbox_id').required = false;
-                } else {
-                    document.getElementById('overtime_cashbox_id').required = false;
-                    document.getElementById('overtime_bank_id').required = false;
-                }
-            });
-        }
-        
-        // Form submit handler - redirect back to payroll item page after success
+        // Form submit handler - validate based on payment type
         var overtimePaymentForm = document.getElementById('overtimePaymentForm');
         if (overtimePaymentForm) {
             overtimePaymentForm.addEventListener('submit', function(e) {
-                // Form will submit normally, server will handle redirect
-                // We just need to ensure the form is valid
+                var paymentTypeSelect = document.getElementById('overtime_payment_type');
+                var cashboxSelect = document.getElementById('overtime_cashbox_id');
+                var bankSelect = document.getElementById('overtime_bank_id');
+                
+                var paymentType = paymentTypeSelect ? paymentTypeSelect.value : '';
+                
+                // Validate payment type is selected
+                if (!paymentType) {
+                    e.preventDefault();
+                    alert('Lütfen ödeme tipini seçiniz.');
+                    if (paymentTypeSelect) paymentTypeSelect.focus();
+                    return false;
+                }
+                
+                // Validate based on payment type
+                if (paymentType === 'cash_out') {
+                    // For cash_out, cashbox is required
+                    if (!cashboxSelect || !cashboxSelect.value) {
+                        e.preventDefault();
+                        if (cashboxSelect) {
+                            cashboxSelect.classList.add('is-invalid');
+                            cashboxSelect.focus();
+                        }
+                        var cashboxError = document.getElementById('overtime_cashbox_error');
+                        if (cashboxError) cashboxError.classList.remove('d-none');
+                        alert('Kasa ödemeleri için kasa seçilmelidir.');
+                        return false;
+                    }
+                    // Clear bank error if exists
+                    var bankError = document.getElementById('overtime_bank_error');
+                    if (bankError) bankError.classList.add('d-none');
+                } else if (paymentType === 'bank_out') {
+                    // For bank_out, bank account is required
+                    if (!bankSelect || !bankSelect.value) {
+                        e.preventDefault();
+                        if (bankSelect) {
+                            bankSelect.classList.add('is-invalid');
+                            bankSelect.focus();
+                        }
+                        var bankError = document.getElementById('overtime_bank_error');
+                        if (bankError) bankError.classList.remove('d-none');
+                        alert('Banka ödemeleri için banka hesabı seçilmelidir.');
+                        return false;
+                    }
+                    // Clear cashbox error if exists
+                    var cashboxError = document.getElementById('overtime_cashbox_error');
+                    if (cashboxError) cashboxError.classList.add('d-none');
+                }
+                
+                return true;
             });
         }
     }

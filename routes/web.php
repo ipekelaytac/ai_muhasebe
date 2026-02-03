@@ -196,6 +196,10 @@ Route::middleware('auth')->group(function () {
         Route::get('employees/{party}/advances/create', [\App\Http\Controllers\Web\Accounting\EmployeeAdvanceController::class, 'create'])->name('employees.advances.create');
         Route::post('employees/{party}/advances', [\App\Http\Controllers\Web\Accounting\EmployeeAdvanceController::class, 'store'])->name('employees.advances.store');
         
+        // Employee Debts (Çalışan Borçları)
+        Route::get('employees/debts/create', [\App\Http\Controllers\Web\Accounting\EmployeeDebtController::class, 'create'])->name('employees.debts.create');
+        Route::post('employees/debts', [\App\Http\Controllers\Web\Accounting\EmployeeDebtController::class, 'store'])->name('employees.debts.store');
+        
         // Payroll Deductions (Maaş Kesintileri)
         Route::get('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'show'])->name('payroll.deductions.show');
         Route::post('payroll/{salaryDocument}/deductions', [\App\Http\Controllers\Web\Accounting\PayrollDeductionController::class, 'store'])->name('payroll.deductions.store');
