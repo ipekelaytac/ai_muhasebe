@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,7 +19,12 @@ use Illuminate\Support\Facades\DB;
 
 class Document extends Model
 {
-    use BelongsToCompany, HasAuditFields, HasPeriod, SoftDeletes;
+    use BelongsToCompany, HasAuditFields, HasFactory, HasPeriod, SoftDeletes;
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\DocumentFactory::new();
+    }
     
     protected $table = 'documents';
     
@@ -28,8 +34,24 @@ class Document extends Model
     protected static function booted(): void
     {
         static::updating(function (Document $document) {
-            // Prevent updates if period is locked (unless it's a status change to cancelled/reversed)
-            if ($document->isInLockedPeriod() && !in_array($document->status, ['cancelled', 'reversed'])) {
+            if (!$document->isInLockedPeriod()) {
+                return;
+            }
+
+            $dirty = array_keys($document->getDirty());
+
+            $allowedInLockedPeriod = [
+                'status',
+                'reversed_document_id',
+                'reversal_document_id',
+                'notes',
+                'updated_by',
+                'updated_at',
+            ];
+
+            $onlyAllowed = empty(array_diff($dirty, $allowedInLockedPeriod));
+
+            if (!$onlyAllowed) {
                 throw new \Exception(
                     "Cannot update document in locked period: {$document->document_number}. " .
                     "Use reversal in an open period instead."
@@ -149,6 +171,12 @@ class Document extends Model
     {
         return $query->where('direction', 'payable');
     }
+
+    /** Alias for scopePayables - used by ReportController */
+    public function scopePayable(Builder $query): Builder
+    {
+        return $query->where('direction', 'payable');
+    }
     
     public function scopeReceivables(Builder $query): Builder
     {
@@ -168,6 +196,18 @@ class Document extends Model
     public function scopeOpen(Builder $query): Builder
     {
         return $query->whereIn('status', DocumentStatus::OPEN);
+    }
+
+    /** Posted = not draft/cancelled/reversed (pending, partial, settled) - used by ReportController */
+    public function scopePosted(Builder $query): Builder
+    {
+        return $query->whereIn('status', [DocumentStatus::PENDING, DocumentStatus::PARTIAL, DocumentStatus::SETTLED]);
+    }
+
+    /** Unpaid = has remaining amount (pending or partial status) - used by ReportController */
+    public function scopeUnpaid(Builder $query): Builder
+    {
+        return $query->whereIn('status', [DocumentStatus::PENDING, DocumentStatus::PARTIAL]);
     }
     
     public function scopeClosed(Builder $query): Builder

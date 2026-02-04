@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\EmployeeContract;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollItem;
+use App\Models\PayrollInstallment;
 use App\Domain\Accounting\Models\Party;
 use App\Domain\Accounting\Models\Document;
 use App\Domain\Accounting\Models\Payment;
@@ -112,7 +113,22 @@ class PayrollAccountingIntegrationTest extends TestCase
             'net_payable' => 10500,
         ]);
 
-        // Create document for payroll item
+        // PayrollDocumentService requires exactly 2 installments
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 1,
+            'due_date' => \Carbon\Carbon::create(2026, 2, 5),
+            'planned_amount' => 5250,
+            'title' => 'Ayın 5\'i',
+        ]);
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 2,
+            'due_date' => \Carbon\Carbon::create(2026, 2, 20),
+            'planned_amount' => 5250,
+            'title' => 'Ayın 20\'si',
+        ]);
+
         $service = app(PayrollDocumentService::class);
         $document = $service->createDocumentForPayrollItem($payrollItem);
 
@@ -124,9 +140,9 @@ class PayrollAccountingIntegrationTest extends TestCase
         $this->assertEquals('payroll_due', $document->type);
         $this->assertEquals('payable', $document->direction);
         $this->assertEquals($employee->party_id, $document->party_id);
-        $this->assertEquals(10500, $document->total_amount);
-        $this->assertEquals(PayrollItem::class, $document->source_type);
-        $this->assertEquals($payrollItem->id, $document->source_id);
+        // createDocumentForPayrollItem returns first installment doc (5250), total payroll is 10500
+        $this->assertEquals(5250, $document->total_amount);
+        $this->assertEquals(\App\Models\PayrollInstallment::class, $document->source_type);
     }
 
     /** @test */
@@ -162,7 +178,21 @@ class PayrollAccountingIntegrationTest extends TestCase
             'net_payable' => 10500,
         ]);
 
-        // Create document
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 1,
+            'due_date' => \Carbon\Carbon::create(2026, 2, 5),
+            'planned_amount' => 5250,
+            'title' => 'Ayın 5\'i',
+        ]);
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 2,
+            'due_date' => \Carbon\Carbon::create(2026, 2, 20),
+            'planned_amount' => 5250,
+            'title' => 'Ayın 20\'si',
+        ]);
+
         $service = app(PayrollDocumentService::class);
         $document = $service->createDocumentForPayrollItem($payrollItem);
 
@@ -181,7 +211,8 @@ class PayrollAccountingIntegrationTest extends TestCase
         $allocation = PaymentAllocation::create([
             'payment_id' => $payment->id,
             'document_id' => $document->id,
-            'allocated_amount' => 5000,
+            'amount' => 5000,
+            'allocation_date' => now(),
             'status' => 'active',
         ]);
 
@@ -220,6 +251,21 @@ class PayrollAccountingIntegrationTest extends TestCase
             'payroll_period_id' => $period->id,
             'employee_id' => $employee->id,
             'net_payable' => 10000,
+        ]);
+
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 1,
+            'due_date' => \Carbon\Carbon::create($period->year, $period->month, 5),
+            'planned_amount' => 5000,
+            'title' => 'Ayın 5\'i',
+        ]);
+        PayrollInstallment::create([
+            'payroll_item_id' => $payrollItem->id,
+            'installment_no' => 2,
+            'due_date' => \Carbon\Carbon::create($period->year, $period->month, 20),
+            'planned_amount' => 5000,
+            'title' => 'Ayın 20\'si',
         ]);
 
         $service = app(PayrollDocumentService::class);

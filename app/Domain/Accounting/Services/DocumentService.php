@@ -223,6 +223,9 @@ class DocumentService
                 throw new \Exception('Bu belge zaten iptal/ters kayıt edilmiş.');
             }
             
+            // Reversals must only be created in an open period
+            $this->periodService->validatePeriodOpen($document->company_id, now()->toDateString());
+            
             // Cancel active allocations first
             foreach ($document->activeAllocations as $allocation) {
                 $allocation->cancel();

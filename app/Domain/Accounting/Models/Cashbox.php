@@ -5,6 +5,7 @@ namespace App\Domain\Accounting\Models;
 use App\Domain\Accounting\Traits\BelongsToCompany;
 use App\Domain\Accounting\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class Cashbox extends Model
 {
-    use BelongsToCompany, HasAuditFields, SoftDeletes;
+    use BelongsToCompany, HasAuditFields, HasFactory, SoftDeletes;
     
     protected $table = 'cashboxes';
     
@@ -132,6 +133,14 @@ class Cashbox extends Model
         return (float) $query->sum('net_amount');
     }
     
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\CashboxFactory::new();
+    }
+
     /**
      * Get total outflows for a period
      */

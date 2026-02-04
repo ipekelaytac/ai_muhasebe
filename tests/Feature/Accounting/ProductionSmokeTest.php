@@ -55,6 +55,7 @@ class ProductionSmokeTest extends TestCase
         $this->cashbox = Cashbox::factory()->create([
             'company_id' => $this->company->id,
             'is_active' => true,
+            'opening_balance' => 50000.00, // Required for CASH_OUT (advance) payments
         ]);
     }
     
@@ -85,7 +86,7 @@ class ProductionSmokeTest extends TestCase
         $this->assertNotNull($document);
         $this->assertEquals('payable', $document->direction);
         $this->assertEquals(1000.00, $document->total_amount);
-        $this->assertEquals(0, $document->paid_amount);
+        $this->assertEquals(0, $document->allocated_amount);
         $this->assertEquals(1000.00, $document->unpaid_amount);
     }
     
@@ -166,7 +167,7 @@ class ProductionSmokeTest extends TestCase
         $this->assertCount(1, $allocations);
         
         $document->refresh();
-        $this->assertEquals(600.00, $document->paid_amount);
+        $this->assertEquals(600.00, $document->allocated_amount);
         $this->assertEquals(400.00, $document->unpaid_amount);
         $this->assertEquals('partial', $document->status);
     }
@@ -263,7 +264,7 @@ class ProductionSmokeTest extends TestCase
         $salaryDoc->refresh();
         $advanceDoc->refresh();
         
-        $this->assertEquals(1000.00, $salaryDoc->paid_amount);
-        $this->assertEquals(1000.00, $advanceDoc->paid_amount);
+        $this->assertEquals(1000.00, $salaryDoc->allocated_amount);
+        $this->assertEquals(1000.00, $advanceDoc->allocated_amount);
     }
 }

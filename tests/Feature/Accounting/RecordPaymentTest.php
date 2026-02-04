@@ -6,9 +6,9 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
-use App\Models\Party;
-use App\Models\Cashbox;
-use App\Models\Payment;
+use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Models\Cashbox;
+use App\Domain\Accounting\Models\Payment;
 use App\Services\RecordPaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -59,8 +59,8 @@ class RecordPaymentTest extends TestCase
         $payment = $this->service->create($data);
 
         $this->assertInstanceOf(Payment::class, $payment);
-        $this->assertEquals('cash_in', $payment->payment_type);
-        $this->assertEquals('in', $payment->direction); // Schema uses 'in'/'out', not 'inflow'/'outflow'
+        $this->assertEquals('cash_in', $payment->type);
+        $this->assertEquals('in', $payment->direction);
         $this->assertEquals(500.00, $payment->amount);
         $this->assertEquals(0, $payment->allocated_amount);
         $this->assertEquals(500.00, $payment->unallocated_amount);
@@ -80,7 +80,7 @@ class RecordPaymentTest extends TestCase
         ];
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Insufficient cash balance');
+        $this->expectExceptionMessage('Yetersiz'); // Turkish: "Yetersiz kasa bakiyesi"
 
         $this->service->create($data);
     }

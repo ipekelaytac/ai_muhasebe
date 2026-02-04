@@ -6,13 +6,13 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
-use App\Models\Party;
-use App\Models\Document;
-use App\Models\Payment;
-use App\Models\PaymentAllocation;
-use App\Services\CreateObligationService;
-use App\Services\RecordPaymentService;
-use App\Services\AllocatePaymentService;
+use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Models\Cashbox;
+use App\Domain\Accounting\Services\DocumentService;
+use App\Domain\Accounting\Services\PaymentService;
+use App\Domain\Accounting\Services\AllocationService;
+use App\Domain\Accounting\Enums\DocumentType;
+use App\Domain\Accounting\Enums\PaymentType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class AllocatePaymentTest extends TestCase
@@ -23,9 +23,9 @@ class AllocatePaymentTest extends TestCase
     protected $company;
     protected $branch;
     protected $party;
-    protected $createObligationService;
-    protected $recordPaymentService;
-    protected $allocatePaymentService;
+    protected $documentService;
+    protected $paymentService;
+    protected $allocationService;
 
     protected function setUp(): void
     {
@@ -41,69 +41,61 @@ class AllocatePaymentTest extends TestCase
         ]);
 
         $this->actingAs($this->user);
-        $this->createObligationService = app(CreateObligationService::class);
-        $this->recordPaymentService = app(RecordPaymentService::class);
-        $this->allocatePaymentService = app(AllocatePaymentService::class);
+        $this->documentService = app(DocumentService::class);
+        $this->paymentService = app(PaymentService::class);
+        $this->allocationService = app(AllocationService::class);
     }
 
     public function test_can_allocate_payment_to_document()
     {
         // Create document
-        $document = $this->createObligationService->create([
+        $document = $this->documentService->createDocument([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'document_type' => 'supplier_invoice',
-            'direction' => 'payable',
+            'type' => DocumentType::SUPPLIER_INVOICE,
             'party_id' => $this->party->id,
             'document_date' => now()->toDateString(),
             'due_date' => now()->addDays(30)->toDateString(),
             'total_amount' => 1000.00,
         ]);
 
-        // Create payment
-        $cashbox = \App\Models\Cashbox::factory()->create([
+        $cashbox = Cashbox::factory()->create([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
         ]);
 
         // First add cash
-        $this->recordPaymentService->create([
+        $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_in',
-            'direction' => 'inflow',
+            'type' => PaymentType::CASH_IN,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 1500.00,
         ]);
 
-        $payment = $this->recordPaymentService->create([
+        $payment = $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_out',
-            'direction' => 'outflow',
+            'type' => PaymentType::CASH_OUT,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 800.00,
         ]);
 
-        // Allocate payment to document
-        $allocations = $this->allocatePaymentService->allocate($payment, [
-            [
-                'document_id' => $document->id,
-                'amount' => 800.00,
-            ],
+        $allocations = $this->allocationService->allocate($payment, [
+            ['document_id' => $document->id, 'amount' => 800.00],
         ]);
 
         $this->assertCount(1, $allocations);
         $this->assertEquals(800.00, $allocations[0]->amount);
 
-        // Verify document updated
         $document->refresh();
-        $this->assertEquals(800.00, $document->paid_amount);
+        $this->assertEquals(800.00, $document->allocated_amount);
         $this->assertEquals(200.00, $document->unpaid_amount);
 
-        // Verify payment updated
         $payment->refresh();
         $this->assertEquals(800.00, $payment->allocated_amount);
         $this->assertEquals(0, $payment->unallocated_amount);
@@ -111,99 +103,91 @@ class AllocatePaymentTest extends TestCase
 
     public function test_cannot_allocate_more_than_unpaid_amount()
     {
-        $document = $this->createObligationService->create([
+        $document = $this->documentService->createDocument([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'document_type' => 'supplier_invoice',
-            'direction' => 'payable',
+            'type' => DocumentType::SUPPLIER_INVOICE,
             'party_id' => $this->party->id,
             'document_date' => now()->toDateString(),
             'due_date' => now()->addDays(30)->toDateString(),
             'total_amount' => 1000.00,
         ]);
 
-        $cashbox = \App\Models\Cashbox::factory()->create([
+        $cashbox = Cashbox::factory()->create([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
         ]);
 
-        $this->recordPaymentService->create([
+        $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_in',
-            'direction' => 'inflow',
+            'type' => PaymentType::CASH_IN,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 2000.00,
         ]);
 
-        $payment = $this->recordPaymentService->create([
+        $payment = $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_out',
-            'direction' => 'outflow',
+            'type' => PaymentType::CASH_OUT,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 1500.00,
         ]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('exceeds unpaid amount');
+        $this->expectExceptionMessage('fazla'); // Turkish: "Dağıtım tutarı belgenin kalan borcundan fazla"
 
-        $this->allocatePaymentService->allocate($payment, [
-            [
-                'document_id' => $document->id,
-                'amount' => 1500.00, // More than document total (1000)
-            ],
+        $this->allocationService->allocate($payment, [
+            ['document_id' => $document->id, 'amount' => 1500.00], // More than document total (1000)
         ]);
     }
 
     public function test_cannot_allocate_more_than_payment_amount()
     {
-        $document = $this->createObligationService->create([
+        $document = $this->documentService->createDocument([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'document_type' => 'supplier_invoice',
-            'direction' => 'payable',
+            'type' => DocumentType::SUPPLIER_INVOICE,
             'party_id' => $this->party->id,
             'document_date' => now()->toDateString(),
             'due_date' => now()->addDays(30)->toDateString(),
             'total_amount' => 2000.00,
         ]);
 
-        $cashbox = \App\Models\Cashbox::factory()->create([
+        $cashbox = Cashbox::factory()->create([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
         ]);
 
-        $this->recordPaymentService->create([
+        $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_in',
-            'direction' => 'inflow',
+            'type' => PaymentType::CASH_IN,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 2000.00,
         ]);
 
-        $payment = $this->recordPaymentService->create([
+        $payment = $this->paymentService->createPayment([
             'company_id' => $this->company->id,
             'branch_id' => $this->branch->id,
-            'payment_type' => 'cash_out',
-            'direction' => 'outflow',
+            'type' => PaymentType::CASH_OUT,
+            'party_id' => $this->party->id,
             'cashbox_id' => $cashbox->id,
             'payment_date' => now()->toDateString(),
             'amount' => 500.00,
         ]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('exceeds unallocated amount');
+        $this->expectExceptionMessage('aşıyor'); // Turkish: "Dağıtım toplamı ödeme tutarını aşıyor"
 
-        $this->allocatePaymentService->allocate($payment, [
-            [
-                'document_id' => $document->id,
-                'amount' => 1000.00, // More than payment amount (500)
-            ],
+        $this->allocationService->allocate($payment, [
+            ['document_id' => $document->id, 'amount' => 1000.00], // More than payment amount (500)
         ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Domain\Accounting\Traits\BelongsToCompany;
 use App\Domain\Accounting\Traits\HasAuditFields;
 use App\Domain\Accounting\Traits\HasPeriod;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
 {
-    use BelongsToCompany, HasAuditFields, HasPeriod, SoftDeletes;
+    use BelongsToCompany, HasAuditFields, HasFactory, HasPeriod, SoftDeletes;
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\PaymentFactory::new();
+    }
     
     protected $table = 'payments';
     
@@ -72,8 +78,24 @@ class Payment extends Model
         });
         
         static::updating(function (Payment $payment) {
-            // Prevent updates if period is locked (unless it's a status change to cancelled/reversed)
-            if ($payment->isInLockedPeriod() && !in_array($payment->status, ['cancelled', 'reversed'])) {
+            if (!$payment->isInLockedPeriod()) {
+                return;
+            }
+
+            $dirty = array_keys($payment->getDirty());
+
+            $allowedInLockedPeriod = [
+                'status',
+                'reversed_payment_id',
+                'reversal_payment_id',
+                'notes',
+                'updated_by',
+                'updated_at',
+            ];
+
+            $onlyAllowed = empty(array_diff($dirty, $allowedInLockedPeriod));
+
+            if (!$onlyAllowed) {
                 throw new \Exception(
                     "Cannot update payment in locked period: {$payment->payment_number}. " .
                     "Use reversal in an open period instead."

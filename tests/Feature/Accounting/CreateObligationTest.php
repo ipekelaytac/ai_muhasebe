@@ -6,9 +6,10 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
-use App\Models\Party;
-use App\Models\Document;
-use App\Models\AccountingPeriod;
+use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Models\Document;
+use App\Domain\Accounting\Models\AccountingPeriod;
+use App\Domain\Accounting\Services\PeriodService;
 use App\Services\CreateObligationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -56,27 +57,18 @@ class CreateObligationTest extends TestCase
         $document = $this->service->create($data);
 
         $this->assertInstanceOf(Document::class, $document);
-        $this->assertEquals('supplier_invoice', $document->document_type);
+        $this->assertEquals('supplier_invoice', $document->type);
         $this->assertEquals('payable', $document->direction);
         $this->assertEquals(1000.00, $document->total_amount);
-        $this->assertEquals(0, $document->paid_amount);
+        $this->assertEquals(0, $document->allocated_amount);
         $this->assertEquals(1000.00, $document->unpaid_amount);
-        $this->assertEquals('pending', $document->status); // Schema uses 'pending' as default, not 'posted'
+        $this->assertEquals('pending', $document->status);
     }
 
     public function test_cannot_create_document_in_locked_period()
     {
-        // Create and lock period (periods are company-level only, no branch_id)
-        $period = AccountingPeriod::create([
-            'company_id' => $this->company->id,
-            'year' => now()->year,
-            'month' => now()->month,
-            'start_date' => now()->startOfMonth(),
-            'end_date' => now()->endOfMonth(),
-            'status' => 'locked',
-            'locked_by' => $this->user->id,
-            'locked_at' => now(),
-        ]);
+        $periodService = app(PeriodService::class);
+        $periodService->lockPeriod($this->company->id, now()->year, now()->month, 'Test lock');
 
         $data = [
             'company_id' => $this->company->id,
@@ -90,7 +82,7 @@ class CreateObligationTest extends TestCase
         ];
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Cannot create document in locked period');
+        $this->expectExceptionMessage('kilitli'); // Turkish: "Bu tarih kilitli bir dönemde"
 
         $this->service->create($data);
     }
@@ -111,6 +103,7 @@ class CreateObligationTest extends TestCase
         $document = $this->service->create($data);
 
         $this->assertNotNull($document->document_number);
-        $this->assertStringStartsWith('SUP-', $document->document_number);
+        // Domain uses AF (Alım Faturası) prefix for supplier_invoice
+        $this->assertStringStartsWith('AF', $document->document_number);
     }
 }

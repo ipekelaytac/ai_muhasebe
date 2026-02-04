@@ -219,6 +219,9 @@ class PaymentService
                 throw new \Exception('Bu ödeme zaten iptal/ters kayıt edilmiş.');
             }
             
+            // Reversals must only be created in an open period
+            $this->periodService->validatePeriodOpen($payment->company_id, now()->toDateString());
+            
             // Cancel active allocations first
             foreach ($payment->activeAllocations as $allocation) {
                 $allocation->cancel();

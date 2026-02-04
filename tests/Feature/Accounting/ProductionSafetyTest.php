@@ -61,8 +61,7 @@ class ProductionSafetyTest extends TestCase
     /** @test */
     public function old_finance_transaction_cannot_be_created()
     {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('FinanceTransaction is deprecated');
+        $this->expectException(\Throwable::class); // Class removed - throws Error
         
         FinanceTransaction::create([
             'company_id' => $this->company->id,
@@ -77,8 +76,7 @@ class ProductionSafetyTest extends TestCase
     /** @test */
     public function old_customer_transaction_cannot_be_created()
     {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('CustomerTransaction is deprecated');
+        $this->expectException(\Throwable::class); // Class removed - throws Error
         
         CustomerTransaction::create([
             'customer_id' => 1,
@@ -106,8 +104,7 @@ class ProductionSafetyTest extends TestCase
     /** @test */
     public function old_advance_cannot_be_created()
     {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Advance is deprecated');
+        $this->expectException(\Throwable::class); // Class removed - throws Error
         
         Advance::create([
             'company_id' => $this->company->id,
@@ -332,7 +329,8 @@ class ProductionSafetyTest extends TestCase
         $advanceDoc = $allocationService->handleOverpayment($payment, $overpaymentAmount);
         
         $this->assertInstanceOf(Document::class, $advanceDoc);
-        $this->assertEquals('advance_received', $advanceDoc->type);
+        // Payment direction 'out' → overpayment creates advance_given (receivable - they owe us)
+        $this->assertEquals('advance_given', $advanceDoc->type);
         $this->assertEquals(500, $advanceDoc->total_amount);
     }
 

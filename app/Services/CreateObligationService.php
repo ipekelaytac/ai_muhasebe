@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Document;
+use App\Domain\Accounting\Models\Document;
 use App\Models\DocumentLine;
 use App\Models\AccountingPeriod;
 use App\Models\AuditLog;
@@ -21,7 +21,7 @@ class CreateObligationService
      * Create a new document (obligation)
      *
      * @param array $data
-     * @return Document
+     * @return \App\Domain\Accounting\Models\Document
      * @throws \Exception
      * @deprecated Use App\Domain\Accounting\Services\DocumentService::createDocument() instead
      */

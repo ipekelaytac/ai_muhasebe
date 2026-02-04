@@ -22,10 +22,24 @@ class PaymentAllocation extends Model
             $payment = $allocation->payment;
             $document = $allocation->document;
             
-            if ($payment->isInLockedPeriod() || $document->isInLockedPeriod()) {
+            if (!$payment->isInLockedPeriod() && !$document->isInLockedPeriod()) {
+                return;
+            }
+            
+            $dirty = array_keys($allocation->getDirty());
+            $allowedInLockedPeriod = [
+                'status',
+                'notes',
+                'updated_by',
+                'updated_at',
+            ];
+            $onlyAllowed = empty(array_diff($dirty, $allowedInLockedPeriod));
+            
+            if (!$onlyAllowed) {
                 throw new \Exception(
                     "Cannot update allocation in locked period. " .
-                    "Payment: {$payment->payment_number}, Document: {$document->document_number}"
+                    "Payment: {$payment->payment_number}, Document: {$document->document_number}. " .
+                    "Use cancellation instead."
                 );
             }
         });

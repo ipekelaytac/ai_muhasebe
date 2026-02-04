@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Payment;
+use App\Domain\Accounting\Models\Payment;
 use App\Models\AccountingPeriod;
-use App\Models\Cashbox;
+use App\Domain\Accounting\Models\Cashbox;
 use App\Models\BankAccount;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +22,7 @@ class RecordPaymentService
      * Record a payment (cash/bank movement)
      *
      * @param array $data
-     * @return Payment
+     * @return \App\Domain\Accounting\Models\Payment
      * @throws \Exception
      * @deprecated Use App\Domain\Accounting\Services\PaymentService::createPayment() instead
      */

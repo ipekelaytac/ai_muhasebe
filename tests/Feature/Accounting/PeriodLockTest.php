@@ -6,9 +6,14 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
+use App\Domain\Accounting\Enums\DocumentType;
+use App\Domain\Accounting\Enums\PaymentType;
 use App\Domain\Accounting\Models\AccountingPeriod;
+use App\Domain\Accounting\Models\Cashbox;
 use App\Domain\Accounting\Models\Party;
+use App\Domain\Accounting\Services\AllocationService;
 use App\Domain\Accounting\Services\DocumentService;
+use App\Domain\Accounting\Services\PaymentService;
 use App\Domain\Accounting\Services\PeriodService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -109,5 +114,68 @@ class PeriodLockTest extends TestCase
         $this->assertEquals('open', $unlockedPeriod->status);
         $this->assertNull($unlockedPeriod->locked_by);
         $this->assertNull($unlockedPeriod->locked_at);
+    }
+
+    /**
+     * Allocation cancel must work in locked period (reversal flows cancel allocations)
+     */
+    public function test_allocation_cancel_works_in_locked_period(): void
+    {
+        $party = Party::factory()->create([
+            'company_id' => $this->company->id,
+            'type' => 'supplier',
+        ]);
+
+        $cashbox = Cashbox::create([
+            'company_id' => $this->company->id,
+            'code' => 'KASA-01',
+            'name' => 'Ana Kasa',
+            'is_active' => true,
+            'opening_balance' => 50000.00,
+        ]);
+
+        $documentService = app(DocumentService::class);
+        $paymentService = app(PaymentService::class);
+        $allocationService = app(AllocationService::class);
+
+        // Create document and payment in open period
+        $document = $documentService->createDocument([
+            'company_id' => $this->company->id,
+            'type' => DocumentType::SUPPLIER_INVOICE,
+            'party_id' => $party->id,
+            'document_date' => now()->toDateString(),
+            'total_amount' => 1000.00,
+        ]);
+
+        $payment = $paymentService->createPayment([
+            'company_id' => $this->company->id,
+            'type' => PaymentType::CASH_OUT,
+            'party_id' => $party->id,
+            'cashbox_id' => $cashbox->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 1000.00,
+        ]);
+
+        // Create allocation (active)
+        $allocations = $allocationService->allocate($payment, [
+            ['document_id' => $document->id, 'amount' => 1000.00],
+        ]);
+        $this->assertCount(1, $allocations);
+        $allocation = $allocations[0];
+        $this->assertEquals('active', $allocation->status);
+
+        // Lock period
+        $this->periodService->lockPeriod(
+            $this->company->id,
+            $this->period->year,
+            $this->period->month,
+            'Month end'
+        );
+
+        // Cancel allocation - must succeed (status/notes only, allowed in locked period)
+        $allocation->cancel();
+
+        $allocation->refresh();
+        $this->assertEquals('cancelled', $allocation->status);
     }
 }
